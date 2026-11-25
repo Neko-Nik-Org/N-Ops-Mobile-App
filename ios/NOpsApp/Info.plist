@@ -10,6 +10,17 @@
 	<string>N-Ops</string>
 	<key>NSCameraUsageDescription</key>
 	<string>N-Ops uses the camera to scan the QR code that links this app to your account.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>N-Ops uses Face ID to unlock the app and confirm approvals.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nops</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

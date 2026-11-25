@@ -1,73 +1,146 @@
-import { useRef, useState } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '../theme';
-import Avatar from './Avatar';
+import { useRouter } from '@/lib/router';
+import { useRef, useState, type ReactNode } from 'react';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const steps = [
-  { eyebrow: 'WELCOME TO', title: 'N-Ops', sub: 'The open-source infrastructure control plane, now in your pocket.', points: ['Open source and self-hostable', 'Built for teams and solo admins'] },
-  { eyebrow: 'ALL IN ONE PLACE', title: 'Run it all', sub: 'Keep an eye on everything your team runs, from anywhere.', points: ['Servers and containers', 'Secrets in an encrypted vault', 'Approvals and audit trail'] },
-  { eyebrow: 'ONE LAST STEP', title: 'Scan to sign in', sub: 'Link this app to your account by scanning a QR code from N-Ops on the web.', points: ['No password typed on your phone', 'Camera is used only for scanning'] },
+import { OutlineIconButton, PrimaryButton, TextButton } from '@/components/Buttons';
+import { StepProgress } from '@/components/Bits';
+import { LogoMark } from '@/components/Logo';
+import { Text, type as T } from '@/components/Text';
+import { ApprovalArt, AlertsArt, ART_H, ART_W, FleetArt, TrustArt } from '@/components/WelcomeArt';
+import { savePrefs } from '@/lib/prefs';
+import { useTheme } from '@/theme/ThemeProvider';
+
+interface Page {
+  eyebrow: string;
+  title: string;
+  body: string;
+  art: ReactNode;
+}
+
+const pages: Page[] = [
+  {
+    eyebrow: 'WELCOME TO N-OPS',
+    title: 'Step away.\nStay in control.',
+    body: 'Health, approvals and alerts for every server you run, right on your phone.',
+    art: <FleetArt />,
+  },
+  {
+    eyebrow: '02 — APPROVALS',
+    title: 'Sign off from\nanywhere.',
+    body: 'When a teammate needs a second pair of eyes on a sensitive action, review it and approve or deny in a tap.',
+    art: <ApprovalArt />,
+  },
+  {
+    eyebrow: '03 — ALERTS',
+    title: 'Know before your users do.',
+    body: 'Server alerts, workflow results and Vault changes reach you the moment they happen, with the audit trail one tap away.',
+    art: <AlertsArt />,
+  },
+  {
+    eyebrow: '04 — SIGN IN',
+    title: 'No passwords.\nJust this phone.',
+    body: "Scan the QR code in your N-Ops admin panel and you're in. Nothing to type, nothing to forget.",
+    art: <TrustArt />,
+  },
 ];
 
-export default function Welcome({ onNext }: { onNext: () => void }) {
-  const { c, isDark, toggle } = useTheme();
-  const [i, setI] = useState(0);
-  const fade = useRef(new Animated.Value(1)).current;
-  const last = i === steps.length - 1;
-  const st = steps[i];
+const LAST = pages.length - 1;
 
-  const next = () => {
-    if (last) return onNext();
-    Animated.timing(fade, { toValue: 0, duration: 120, useNativeDriver: true }).start(() => {
-      setI(i + 1);
-      Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-    });
+export default function Welcome() {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width: W, height: H } = useWindowDimensions();
+  const scroller = useRef<Animated.ScrollView>(null);
+  const position = useSharedValue(0);
+  const [index, setIndex] = useState(0);
+
+  const onScroll = useAnimatedScrollHandler((e) => {
+    position.value = e.contentOffset.x / W;
+  });
+
+  const top = insets.top + 9;
+  const bottom = insets.bottom + 6;
+  // Everything except the illustration: header, progress, gaps, text block, button.
+  const fixed = top + 44 + 16 + 20 + 28 + 184 + 16 + 56 + bottom;
+  const artScale = Math.max(0.62, Math.min(1, (H - fixed) / ART_H, (W - 48) / ART_W));
+
+  const goTo = (i: number) => {
+    scroller.current?.scrollTo({ x: i * W, animated: true });
+    setIndex(i);
+  };
+
+  const finish = async () => {
+    await savePrefs({ onboardingSeen: true });
+    router.push('/scan');
   };
 
   return (
-    <View style={[s.root, { backgroundColor: c.bg }]}>
-      <View style={[s.glow, { backgroundColor: c.violet }]} />
-      <View style={s.top}>
-        {!last ? <Pressable onPress={onNext} accessibilityRole="button"><Text style={[s.toggleText, { color: c.mute }]}>Skip</Text></Pressable> : <View />}
-        <Pressable style={[s.toggle, { borderColor: c.mute }]} onPress={toggle} accessibilityRole="button" accessibilityLabel="Switch theme">
-          <Text style={[s.toggleText, { color: c.ink }]}>{isDark ? 'Light' : 'Dark'}</Text>
-        </Pressable>
-      </View>
-      <Avatar step={i} />
-      <Animated.View style={{ opacity: fade }}>
-        <Text style={[s.eyebrow, { color: c.mute }]}>{st.eyebrow}</Text>
-        <Text style={[s.title, { color: c.ink }]}>{st.title}</Text>
-        <Text style={[s.sub, { color: c.mute }]}>{st.sub}</Text>
-        <View style={s.list}>
-          {st.points.map(p => (
-            <View key={p} style={s.row}><View style={[s.dot, { backgroundColor: c.mint }]} /><Text style={[s.item, { color: c.ink }]}>{p}</Text></View>
-          ))}
+    <View style={[styles.root, { backgroundColor: colors.bg, paddingTop: top, paddingBottom: bottom }]}>
+      <View style={styles.header}>
+        <View style={styles.brand}>
+          <LogoMark size={28} />
+          <Text f="display700" size={18} lh={22} ls={-0.18} color={colors.textStrong}>
+            N-Ops
+          </Text>
         </View>
-      </Animated.View>
-      <View style={s.dots}>
-        {steps.map((_, n) => <View key={n} style={[s.pip, { backgroundColor: n === i ? c.mint : c.mute, opacity: n === i ? 1 : 0.35, width: n === i ? 24 : 8 }]} />)}
+        {index < LAST ? <TextButton label="Skip" onPress={() => void finish()} /> : null}
       </View>
-      <Pressable style={[s.btn, { backgroundColor: c.mint }]} onPress={next} accessibilityRole="button">
-        <Text style={[s.btnText, { color: c.onMint }]}>{last ? 'Scan QR code' : 'Next'}</Text>
-      </Pressable>
+      <View style={styles.progress}>
+        <StepProgress count={pages.length} position={position} />
+      </View>
+
+      <Animated.ScrollView
+        ref={scroller}
+        horizontal
+        pagingEnabled
+        bounces={false}
+        showsHorizontalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / W))}
+        style={styles.pager}
+      >
+        {pages.map((p, i) => (
+          <View key={p.eyebrow} style={{ width: W, paddingHorizontal: 24 }} accessibilityLabel={`Step ${i + 1} of ${pages.length}`}>
+            <View style={{ height: ART_H * artScale, marginTop: 20, alignItems: 'center' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+              <View style={{ width: ART_W, height: ART_H, transform: [{ scale: artScale }], transformOrigin: 'top' }}>{p.art}</View>
+            </View>
+            <View style={styles.copy}>
+              <Text {...T.eyebrow} color={colors.accent}>
+                {p.eyebrow}
+              </Text>
+              <Text {...T.title} color={colors.textStrong} accessibilityRole="header">
+                {p.title}
+              </Text>
+              <Text {...T.body} color={colors.muted}>
+                {p.body}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </Animated.ScrollView>
+
+      <View style={styles.actions}>
+        {index > 0 ? <OutlineIconButton icon="arrowLeft" accessibilityLabel="Back" onPress={() => goTo(index - 1)} /> : null}
+        {index < LAST ? (
+          <PrimaryButton label="Next" icon="arrowRight" onPress={() => goTo(index + 1)} />
+        ) : (
+          <PrimaryButton label="Link this phone" icon="qrScan" iconPosition="left" onPress={() => void finish()} />
+        )}
+      </View>
     </View>
   );
 }
-const s = StyleSheet.create({
-  root: { flex: 1, padding: 28, justifyContent: 'flex-end', paddingBottom: 48 },
-  glow: { position: 'absolute', top: -120, right: -100, width: 320, height: 320, borderRadius: 160, opacity: 0.18 },
-  top: { position: 'absolute', top: 56, left: 28, right: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  toggle: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
-  toggleText: { fontSize: 13 },
-  eyebrow: { letterSpacing: 3, fontSize: 12, marginTop: 12, marginBottom: 4 },
-  title: { fontSize: 48, fontWeight: '700', letterSpacing: -2 },
-  sub: { fontSize: 17, lineHeight: 24, marginTop: 8 },
-  list: { marginTop: 20, gap: 12, minHeight: 90 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  item: { fontSize: 16, flex: 1 },
-  dots: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginVertical: 20 },
-  pip: { height: 8, borderRadius: 4 },
-  btn: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  btnText: { fontSize: 17, fontWeight: '700' },
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  header: { height: 44, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  progress: { paddingHorizontal: 24, marginTop: 12 },
+  pager: { flex: 1 },
+  copy: { marginTop: 28, gap: 12 },
+  actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, paddingTop: 16 },
 });
