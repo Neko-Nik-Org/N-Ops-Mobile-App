@@ -1,7 +1,24 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import { Haptics } from '@/lib/haptics';
 import { useLocalSearchParams, useRouter } from '@/lib/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -193,7 +210,7 @@ export default function Linking() {
   }, [attempt, run]);
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.bg, paddingTop: insets.top + 9, paddingBottom: insets.bottom + 6 }]}>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={[styles.root, { paddingTop: insets.top + 9, paddingBottom: insets.bottom + 6 }]} bounces={false}>
       <Svg width={280} height={280} style={styles.glow} pointerEvents="none">
         <Defs>
           <RadialGradient id="lkglow" cx={140} cy={140} r={140} gradientUnits="userSpaceOnUse">
@@ -231,6 +248,7 @@ export default function Linking() {
         </View>
       )}
 
+      <View style={{ height: 24 }} />
       <View style={[styles.server, { borderColor: colors.line }]}>
         <View style={[styles.serverIcon, { backgroundColor: colors.surface }]}>
           <Icon name="servers" size={18} color={colors.violetText} strokeWidth={1.8} />
@@ -245,12 +263,12 @@ export default function Linking() {
         </View>
         <Icon name="lock" size={18} color={colors.accent} />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, paddingHorizontal: 24, alignItems: 'center' },
+  root: { flexGrow: 1, paddingHorizontal: 24, alignItems: 'center' },
   glow: { position: 'absolute', top: 120, alignSelf: 'center', opacity: 1 },
   mark: { width: 168, height: 168 },
   titles: { marginTop: 40, gap: 8, alignItems: 'center' },

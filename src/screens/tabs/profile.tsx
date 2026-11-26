@@ -1,7 +1,23 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import { useRouter } from '@/lib/router';
 import { useEffect, useState } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconTile } from '@/components/Bits';
 import { PressableScale } from '@/components/Buttons';
@@ -25,7 +41,6 @@ import { radius } from '@/theme/tokens';
 export default function Profile() {
   const router = useRouter();
   const { colors, pref, setPref } = useTheme();
-  const insets = useSafeAreaInsets();
   const { session, clear } = useSession();
   const [bio, setBio] = useState<BiometricInfo | null>(null);
   const [bioOn, setBioOn] = useState(false);
@@ -65,10 +80,7 @@ export default function Profile() {
   ];
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={[styles.content, { paddingTop: insets.top + 9 }]}>
-      <Text {...T.titleXs} color={colors.textStrong} accessibilityRole="header">
-        Profile
-      </Text>
+    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={[styles.content, { paddingTop: 12 }]}>
 
       {session ? (
         <View style={[styles.card, styles.person, { backgroundColor: colors.surface, borderColor: colors.line }]}>

@@ -1,14 +1,33 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import { createNavigationContainerRef, StackActions, useFocusEffect, useRoute } from '@react-navigation/native';
 import { useEffect } from 'react';
 
+import { DRAWER_ROUTES } from './menu';
+
 /**
  * Thin expo-router-style API over React Navigation, so screens read `router.push('/scan')`.
- * Paths map to route names: stack screens by name, the five tab screens inside "tabs".
+ * Paths map to route names: stack screens by name, the drawer screens inside "tabs".
  */
 export const navRef = createNavigationContainerRef<Record<string, object | undefined>>();
 export { useFocusEffect };
 
-const TABS = ['home', 'servers', 'approvals', 'alerts', 'profile'];
+const TABS = DRAWER_ROUTES;
 type Params = Record<string, string | undefined>;
 export type Href = string | { pathname: string; params?: Params };
 

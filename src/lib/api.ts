@@ -1,7 +1,24 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import { config } from './config';
 import { ApiError } from './errors';
 import type { NotificationPrefs } from './prefs';
-import type { Dashboard, DeviceInfo, Session, SessionUser, SessionWorkspace } from './types';
+import type { Dashboard, DeviceInfo, Session, SessionUser, SessionWorkspace, Tag } from './types';
 
 /**
  * Client for the N-Ops Main API. Linking follows the Admin UI: the web app makes a one-time device
@@ -23,7 +40,9 @@ export interface LinkResult {
 export interface Api {
   linkDevice(server: string, userId: number, code: string, device: DeviceInfo): Promise<LinkResult>;
   bootstrap(session: Session): Promise<Dashboard>;
-  dashboard(session: Session): Promise<Dashboard>;
+  /** `tagId` null = all tags. */
+  dashboard(session: Session, tagId: number | null): Promise<Dashboard>;
+  listTags(session: Session): Promise<Tag[]>;
   approve(session: Session, approvalId: string): Promise<void>;
   registerPush(session: Session, pushToken: string, platform: 'ios' | 'android', prefs: NotificationPrefs): Promise<void>;
   updateNotificationPrefs(session: Session, prefs: NotificationPrefs): Promise<void>;
@@ -152,7 +171,12 @@ export const api: Api = {
     };
   },
   bootstrap: checkSession,
-  dashboard: checkSession,
+  // shortcut: tagId is accepted but unused until the fleet/approvals/alerts routes exist and can filter by tag.
+  dashboard: (s) => checkSession(s),
+  async listTags(session) {
+    const raw = await authed<Array<{ tag_id: number; tag_name: string; tag_description: string }>>(session, '/tag/list');
+    return raw.map((t) => ({ tagId: t.tag_id, tagName: t.tag_name, tagDescription: t.tag_description }));
+  },
   async approve() {
     throw new ApiError('server', "Approvals aren't available on this server yet.");
   },

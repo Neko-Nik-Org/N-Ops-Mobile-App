@@ -1,7 +1,24 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import { Haptics } from '@/lib/haptics';
 import { useFocusEffect, useRouter } from '@/lib/router';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Linking, StatusBar, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Linking, StatusBar, StyleSheet, View } from 'react-native';
 import Animated, { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, G, Path } from 'react-native-svg';
@@ -13,6 +30,7 @@ import { Icon } from '@/components/Icon';
 import { BrandGradient, useSvgId } from '@/components/Logo';
 import { Text } from '@/components/Text';
 import { parseLinkPayload } from '@/lib/linkPayload';
+import { useColumn } from '@/theme/layout';
 import { useTheme } from '@/theme/ThemeProvider';
 import { brand, radius } from '@/theme/tokens';
 import { easeInOut } from '@/theme/motion';
@@ -27,7 +45,7 @@ export default function Scan() {
   const router = useRouter();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { width: W, height: H } = useWindowDimensions();
+  const { W, H, land } = useColumn();
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
   const [denied, setDenied] = useState(false);
@@ -57,9 +75,10 @@ export default function Scan() {
 
   // Geometry: the canvas frame (390×844) with responsive fallbacks for short screens.
   const compact = H < 740;
-  const size = compact ? 220 : 260;
-  const cutTop = insets.top + (compact ? 70 : 103);
-  const cutLeft = (W - size) / 2;
+  // Landscape phone: viewfinder on the left half, instructions on the right.
+  const size = land ? Math.min(220, H - insets.top - 80) : compact ? 220 : 260;
+  const cutTop = land ? insets.top + 62 : insets.top + (compact ? 70 : 103);
+  const cutLeft = land ? (W / 2 - size) / 2 + 16 : (W - size) / 2;
   const scanTravel = size - 34;
 
   const y = useSharedValue(0);
@@ -154,7 +173,7 @@ export default function Scan() {
         />
       </View>
 
-      <View style={[styles.hint, { top: cutTop + size + 22 }]} accessibilityLiveRegion="polite">
+      <View style={[styles.hint, land ? { top: cutTop + size + 8, right: W / 2 } : { top: cutTop + size + 22 }]} accessibilityLiveRegion="polite">
         {hint === 'searching' ? (
           <Animated.View style={[styles.hintRow, pulse]}>
             <View style={[styles.hintDot, { backgroundColor: brand.mint }]} />
@@ -175,11 +194,11 @@ export default function Scan() {
         </Text>
       </View>
 
-      <View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 6 }]}>
+      <View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 6 }, land && styles.sheetLand]}>
         <Text f="body600" size={13} lh={18} ls={0.26} color={colors.muted}>
           Where to find the code
         </Text>
-        {compact ? (
+        {compact || land ? (
           <Text size={14} lh={20} color={colors.text}>
             Open N-Ops on your computer, go to <Text f="body600" size={14} lh={20}>Account → Devices → Link a mobile device</Text>, then point your camera at the QR.
           </Text>
@@ -243,6 +262,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: radius.sheet,
     gap: 18,
   },
+  sheetLand: { left: '50%', bottom: 16, right: 16, borderRadius: radius.sheet },
   step: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   stepNum: { width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in the mobile app doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. **Security issues must not be reported here**, see SECURITY.md.
+        Remove tokens, secrets, and personal data from anything you paste.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected to see instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Click …
+        3. See …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version or commit
+      placeholder: e.g. 0.0.1, or a commit hash
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Device and OS
+      placeholder: e.g. iPhone 16 on iOS 18, or Pixel 8 on Android 15
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Metro or native logs, or failed API responses, with secrets removed.
+      render: text

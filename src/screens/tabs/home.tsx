@@ -1,15 +1,30 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import { useRouter } from '@/lib/router';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconTile } from '@/components/Bits';
 import { PressableScale, SmallButton } from '@/components/Buttons';
 import { Icon } from '@/components/Icon';
-import { LogoMark } from '@/components/Logo';
 import { Text, type as T } from '@/components/Text';
 import { useDashboard } from '@/lib/dashboard';
-import { ago, greeting, shortAgo, workspaceLabel } from '@/lib/format';
+import { ago, greeting, shortAgo } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import type { AlertItem, ApprovalRequest } from '@/lib/types';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -21,7 +36,6 @@ const enter = (i: number) => FadeInDown.delay(i * 60).duration(500).easing(easeO
 export default function Home() {
   const router = useRouter();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const { session } = useSession();
   const { data, loading, refreshing, refresh, approvedIds, error } = useDashboard();
 
@@ -33,40 +47,10 @@ export default function Home() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 9 }]}
+      contentContainerStyle={[styles.content, { paddingTop: 0 }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.accent} colors={[brand.mint]} />}
     >
-      <View style={styles.header}>
-        <PressableScale accessibilityLabel="Switch workspace" style={styles.workspace}>
-          <LogoMark size={32} />
-          <View style={{ flexShrink: 1 }}>
-            <Text size={11} lh={14} color={colors.muted}>
-              Workspace
-            </Text>
-            <View style={styles.wsRow}>
-              <Text f="body600" size={15} lh={20} numberOfLines={1}>
-                {session ? workspaceLabel(session.workspace) : '—'}
-              </Text>
-              <Icon name="chevronDown" size={14} color={colors.muted} strokeWidth={2.2} />
-            </View>
-          </View>
-        </PressableScale>
-        <PressableScale
-          accessibilityLabel={data?.unreadCount ? `Notifications, ${data.unreadCount} unread` : 'Notifications'}
-          onPress={() => router.navigate('/alerts')}
-          style={[styles.bell, { borderColor: colors.line, backgroundColor: colors.surface }]}
-        >
-          <Icon name="bell" size={20} color={colors.text} strokeWidth={1.9} />
-          {data?.unreadCount ? <View style={[styles.unread, { backgroundColor: colors.crit, boxShadow: `0px 0px 0px 2px ${colors.surface}` }]} /> : null}
-        </PressableScale>
-        <PressableScale accessibilityLabel="Profile" onPress={() => router.navigate('/profile')} style={[styles.avatar, { backgroundImage: brand.gradientDiagonal }]}>
-          <Text f="display700" size={14} lh={18} color={brand.onMint}>
-            {session?.user.initials ?? ''}
-          </Text>
-        </PressableScale>
-      </View>
-
-      <Animated.View entering={enter(0)} style={{ marginTop: 22, gap: 4 }}>
+      <Animated.View entering={enter(0)} style={{ marginTop: 16, gap: 4 }}>
         <Text {...T.titleXs} lh={30} color={colors.textStrong} accessibilityRole="header">
           {greeting()}
           {first ? `, ${first}` : ''}
@@ -245,12 +229,6 @@ function AlertRow({ alert, last }: { alert: AlertItem; last: boolean }) {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: 32 },
-  header: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  workspace: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  wsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  bell: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  unread: { position: 'absolute', top: 9, right: 10, width: 8, height: 8, borderRadius: 4 },
-  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   banner: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: radius.sm },
   skeleton: { borderRadius: radius.card },
   card: { padding: 16, borderRadius: radius.card, borderWidth: 1, gap: 12 },

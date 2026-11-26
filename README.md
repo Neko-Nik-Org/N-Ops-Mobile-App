@@ -1,100 +1,73 @@
-# N-Ops-Mobile-App
-Mobile &amp; Desktop App for N-Ops platform
+# N-Ops Mobile App
 
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+**Mobile app (iOS and Android, phone and tablet) for [N-Ops](https://nops.app), the open-source infrastructure control plane by Neko Nik, in partnership with YSPL.**
 
-# Getting Started
+> One platform. Complete infrastructure control.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+- Mobile app repository: https://github.com/Neko-Nik-Org/N-Ops-Mobile-App
+- Backend (Main API): https://github.com/Neko-Nik-Org/N-Ops-Main-API
+- Web admin console: https://github.com/Neko-Nik-Org/N-Ops-Admin-UI
 
-## Step 1: Start Metro
+## Project status
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+The app follows the [Main API](https://github.com/Neko-Nik-Org/N-Ops-Main-API) and mirrors the
+[Admin UI](https://github.com/Neko-Nik-Org/N-Ops-Admin-UI) menu. Some parts are wired to the
+backend, and others are placeholders for planned features.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+| Area                                                                  | Status                                                |
+| --------------------------------------------------------------------- | ----------------------------------------------------- |
+| Link this phone (QR code or typed code, session renewal, unlink)      | ✅ Live (`/auth/device/*`, `/auth/verify`)            |
+| Tag list and tag scoping                                              | 🚧 List is live (`/tag/list`); data isn't filtered yet |
+| Overview, Servers, Approvals, Alerts                                  | 🚧 Layout ready, waiting on backend endpoints         |
+| Vault, Tools, Metrics, Workflows, Service management/logs, Admin pages | 📋 Planned (menu entries show a placeholder)          |
 
-```sh
-# Using npm
-npm start
+## Features
 
-# OR using Yarn
-yarn start
+- Drawer navigation with the Admin UI menu (a permanent side panel on wide tablets)
+- Portrait and landscape on phones and tablets
+- Tag picker that scopes the whole app
+- Linking by scanning a QR code from the Admin UI, with biometric unlock for approvals
+- Light, dark, and system themes
+- Session tokens kept in the device Keychain/Keystore and sent in the `x-nops-token` header
+
+## Tech stack
+
+React Native 0.88 · React 19 · TypeScript · React Navigation (native stack, drawer) ·
+Reanimated · Vision Camera · Jest
+
+## Quick start
+
+Requirements: Node.js 22.11+, npm, and the
+[React Native environment](https://reactnative.dev/docs/set-up-your-environment) for your platform.
+You also need a running [N-Ops Main API](https://github.com/Neko-Nik-Org/N-Ops-Main-API) to link to.
+
+```bash
+git clone https://github.com/Neko-Nik-Org/N-Ops-Mobile-App.git
+cd N-Ops-Mobile-App
+npm install
+cd ios && bundle install && bundle exec pod install && cd ..   # iOS only
+npm start          # Metro
+npm run ios        # or: npm run android
 ```
 
-## Step 2: Build and run your app
+| Script              | What it does               |
+| ------------------- | -------------------------- |
+| `npm start`         | Start Metro                |
+| `npm run ios`       | Build and run on iOS       |
+| `npm run android`   | Build and run on Android   |
+| `npm run lint`      | ESLint                     |
+| `npm run typecheck` | Type-check                 |
+| `npm test`          | Jest                       |
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+To link a phone, open **Account › Devices** in the Admin UI and scan the QR code (or type the user
+ID and one-time code).
 
-### Android
+## Contributing
 
-```sh
-# Using npm
-npm run android
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report security issues privately, as described in
+[SECURITY.md](SECURITY.md).
 
-# OR using Yarn
-yarn android
-```
+## License
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+[GNU General Public License v3.0](LICENSE). Every source file carries the license header.

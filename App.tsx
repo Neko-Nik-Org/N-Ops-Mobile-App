@@ -1,10 +1,29 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { navRef } from '@/lib/router';
 import { SessionProvider } from '@/lib/session';
+import { MAX_W, useColumn } from '@/theme/layout';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import Code from './src/screens/code';
 import Index from './src/screens';
@@ -22,10 +41,12 @@ const linking = { prefixes: ['nops://'], config: { screens: { link: 'link' } } }
 
 function Root() {
   const { ready, colors, scheme } = useTheme();
+  const { landscape, left, right } = useColumn();
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
+      <View style={{ flex: 1, width: '100%', maxWidth: landscape ? undefined : MAX_W, alignSelf: 'center', paddingLeft: landscape ? left : 0, paddingRight: landscape ? right : 0 }}>
       <NavigationContainer ref={navRef} linking={linking}>
         <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.bg } }}>
           <Stack.Screen name="index" component={Index} options={{ animation: 'none' }} />
@@ -38,18 +59,21 @@ function Root() {
           <Stack.Screen name="link" component={Link} options={{ animation: 'none' }} />
         </Stack.Navigator>
       </NavigationContainer>
+      </View>
     </View>
   );
 }
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <SessionProvider>
-          <Root />
-        </SessionProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <SessionProvider>
+            <Root />
+          </SessionProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

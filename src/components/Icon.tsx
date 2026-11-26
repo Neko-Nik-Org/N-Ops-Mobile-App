@@ -1,7 +1,30 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import Svg, { Path } from 'react-native-svg';
 
 /** Stroke icons from the canvas (24×24 grid, round caps and joins). */
 const paths = {
+  tag: 'M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z M8 8h.01',
+  menu: 'M4 6h16 M4 12h16 M4 18h16',
+  wrench: 'M14.7 6.3a4 4 0 0 0-5 5L3 18l3 3 6.7-6.7a4 4 0 0 0 5-5l-2.5 2.5-2.2-.5-.5-2.2 2.2-2.8z',
+  boxes: 'M3 8l9-5 9 5v8l-9 5-9-5V8z M3 8l9 5 9-5 M12 13v8',
+  lineChart: 'M3 3v18h18 M7 15l4-5 3 3 5-7',
+  scroll: 'M8 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 0 3-3V4z M8 4a3 3 0 0 0-3 3v1h3 M12 9h4 M12 13h4',
   arrowRight: 'M5 12h14 M13 6l6 6-6 6',
   arrowLeft: 'M19 12H5 M11 6l-6 6 6 6',
   chevronLeft: 'M15 6l-6 6 6 6',

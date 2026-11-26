@@ -1,6 +1,23 @@
+/*
+ * Copyright (C) 2026 Neko Nik <nikhil@nekonik.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 import { useRouter } from '@/lib/router';
 import { useRef, useState, type ReactNode } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,6 +27,7 @@ import { LogoMark } from '@/components/Logo';
 import { Text, type as T } from '@/components/Text';
 import { ApprovalArt, AlertsArt, ART_H, ART_W, FleetArt, TrustArt } from '@/components/WelcomeArt';
 import { savePrefs } from '@/lib/prefs';
+import { useColumn } from '@/theme/layout';
 import { useTheme } from '@/theme/ThemeProvider';
 
 interface Page {
@@ -52,7 +70,7 @@ export default function Welcome() {
   const router = useRouter();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { width: W, height: H } = useWindowDimensions();
+  const { W, H, land } = useColumn();
   const scroller = useRef<Animated.ScrollView>(null);
   const position = useSharedValue(0);
   const [index, setIndex] = useState(0);
@@ -65,7 +83,10 @@ export default function Welcome() {
   const bottom = insets.bottom + 6;
   // Everything except the illustration: header, progress, gaps, text block, button.
   const fixed = top + 44 + 16 + 20 + 28 + 184 + 16 + 56 + bottom;
-  const artScale = Math.max(0.62, Math.min(1, (H - fixed) / ART_H, (W - 48) / ART_W));
+  // Landscape phone: art sits beside the copy, so only the chrome above/below it counts.
+  const artScale = land
+    ? Math.max(0.4, Math.min(1, (H - top - bottom - 44 - 12 - 8 - 16 - 56 - 40) / ART_H, (W / 2 - 36) / ART_W))
+    : Math.max(0.62, Math.min(1, (H - fixed) / ART_H, (W - 48) / ART_W));
 
   const goTo = (i: number) => {
     scroller.current?.scrollTo({ x: i * W, animated: true });
@@ -104,11 +125,11 @@ export default function Welcome() {
         style={styles.pager}
       >
         {pages.map((p, i) => (
-          <View key={p.eyebrow} style={{ width: W, paddingHorizontal: 24 }} accessibilityLabel={`Step ${i + 1} of ${pages.length}`}>
-            <View style={{ height: ART_H * artScale, marginTop: 20, alignItems: 'center' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <View key={p.eyebrow} style={{ width: W, paddingHorizontal: 24, flexDirection: land ? 'row' : 'column', alignItems: land ? 'center' : undefined, gap: land ? 24 : 0 }} accessibilityLabel={`Step ${i + 1} of ${pages.length}`}>
+            <View style={{ height: ART_H * artScale, flex: land ? 1 : undefined, marginTop: land ? 0 : 20, alignItems: 'center' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
               <View style={{ width: ART_W, height: ART_H, transform: [{ scale: artScale }], transformOrigin: 'top' }}>{p.art}</View>
             </View>
-            <View style={styles.copy}>
+            <View style={[styles.copy, land && { flex: 1, marginTop: 0 }]}>
               <Text {...T.eyebrow} color={colors.accent}>
                 {p.eyebrow}
               </Text>
