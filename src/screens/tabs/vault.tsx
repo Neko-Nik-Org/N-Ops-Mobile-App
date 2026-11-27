@@ -25,7 +25,7 @@ import { Empty, ListCard, ListRow, Screen } from '@/components/Page';
 import { Text } from '@/components/Text';
 import { api } from '@/lib/api';
 import { useDashboard } from '@/lib/dashboard';
-import { authenticate, getBiometricInfo } from '@/lib/biometrics';
+import { confirmOwner } from '@/lib/ownerConfirm';
 import { messageOf } from '@/lib/errors';
 import { ago } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -34,6 +34,9 @@ import { useLoad } from '@/lib/useLoad';
 import { useTheme } from '@/theme/ThemeProvider';
 
 // shortcut: only secrets (env keys) are built; config files and notes need their own screens. The API lists keys per project AND tag, so "All tags" fans out over every tag.
+/** How long a copied secret stays on the clipboard. */
+const CLIPBOARD_CLEAR_MS = 30_000;
+
 export default function Vault() {
   const { colors } = useTheme();
   const { session } = useSession();
@@ -63,10 +66,12 @@ export default function Vault() {
 
   const copy = async (k: SecretKey) => {
     if (!session) return;
-    const bio = await getBiometricInfo();
-    if (bio.available && !(await authenticate(`Copy ${k.name}`))) return;
+    if (!(await confirmOwner(`Copy ${k.name}`))) return;
     try {
-      Clipboard.setString(await api.revealSecret(session, k.secretId, k.currentVersion));
+      const secret = await api.revealSecret(session, k.secretId, k.currentVersion);
+      Clipboard.setString(secret);
+      // Don't leave the secret on the clipboard: clear it after a short while, unless something else was copied since.
+      setTimeout(() => void Clipboard.getString().then((now) => now === secret && Clipboard.setString('')).catch(() => undefined), CLIPBOARD_CLEAR_MS);
       setCopied(k.secretId);
       setTimeout(() => setCopied((c) => (c === k.secretId ? null : c)), 2000);
     } catch (e) {
@@ -77,7 +82,7 @@ export default function Vault() {
   return (
     <Screen title="Vault" loading={loading} error={error ?? msg} onRefresh={() => void reload()}>
       <Text size={13} lh={19} color={colors.muted} style={{ marginTop: 12 }}>
-        Values stay hidden. Copying asks for Face ID.
+        Values stay hidden. Copying asks for Face ID or your PIN.
       </Text>
       {projects?.length ? (
         projects.map((p) => {

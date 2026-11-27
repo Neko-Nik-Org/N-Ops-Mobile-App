@@ -52,6 +52,8 @@ interface Props {
   onBack: () => void;
   /** Bottom-left key (Face ID / fingerprint). Left empty when absent. */
   bio?: { icon: IconName; label: string; onPress: () => void };
+  /** While the Face ID / fingerprint prompt is up: a pulsing icon replaces the dots and the keys dim. */
+  bioActive?: { icon: IconName; text: string };
   /** Smaller keys, for a short landscape screen. */
   compact?: boolean;
   /** Draw only the dots and message (the keypad goes in another column). */
@@ -61,13 +63,20 @@ interface Props {
 const SUBS = ['', 'ABC', 'DEF', 'GHI', 'JKL', 'MNO', 'PQRS', 'TUV', 'WXYZ'];
 
 /** The dots, the line under them, and the fixed keypad (it never shuffles: muscle memory and screen readers rely on it). */
-export function PinPad({ pin, state, message, messageColor, note, onDigit, onBack, bio, compact, part = 'all' }: Props) {
+export function PinPad({ pin, state, message, messageColor, note, onDigit, onBack, bio, bioActive, compact, part = 'all' }: Props) {
   const { colors } = useTheme();
   const reduce = useReducedMotion();
   const x = useSharedValue(0);
   const wave = useSharedValue(0);
   const size = compact ? 56 : 76;
-  const off = state === 'verifying' || state === 'success' || state === 'locked';
+  const off = state === 'verifying' || state === 'success' || state === 'locked' || !!bioActive;
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    if (bioActive && !reduce) pulse.value = withRepeat(withTiming(1, { duration: 1200, easing: Easing.out(Easing.ease) }), -1);
+    else pulse.value = 0;
+    return () => cancelAnimation(pulse);
+  }, [bioActive, reduce, pulse]);
+  const ring = useAnimatedStyle(() => ({ opacity: 1 - pulse.value, transform: [{ scale: 1 + pulse.value * 0.35 }] }));
 
   useEffect(() => {
     if (state === 'wrong' || state === 'weak') {
@@ -92,6 +101,14 @@ export function PinPad({ pin, state, message, messageColor, note, onDigit, onBac
 
   const dots = (
     <View style={styles.top}>
+      {bioActive ? (
+        <View accessible accessibilityLabel={bioActive.text} style={styles.bioWrap}>
+          <Animated.View style={[styles.bioRing, { borderColor: colors.accent }, ring]} />
+          <View style={[styles.bioCircle, { backgroundColor: colors.okSoft }]}>
+            <Icon name={bioActive.icon} size={28} color={colors.accent} strokeWidth={1.8} />
+          </View>
+        </View>
+      ) : (
       <Animated.View
         style={[styles.dots, shake]}
         accessible
@@ -102,11 +119,12 @@ export function PinPad({ pin, state, message, messageColor, note, onDigit, onBac
           <Dot key={i} index={i} filled={i < shown} color={dotColor} empty={colors.decoNode} wave={wave} />
         ))}
       </Animated.View>
+      )}
       <View style={{ alignItems: 'center', gap: 4 }} accessibilityLiveRegion="polite">
         <View style={styles.msg}>
           {state === 'verifying' ? <Spinner size={16} color={colors.ok} /> : null}
-          <Text f="body500" size={14} lh={20} color={messageColor ?? colors.muted} align="center">
-            {message}
+          <Text f="body500" size={14} lh={20} color={bioActive ? colors.text2 : (messageColor ?? colors.muted)} align="center">
+            {bioActive ? bioActive.text : message}
           </Text>
         </View>
         {note ? (
@@ -125,7 +143,7 @@ export function PinPad({ pin, state, message, messageColor, note, onDigit, onBac
       disabled={opts.disabled}
       onPress={onPress}
       style={({ pressed }) => [
-        { width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', opacity: opts.disabled ? 0.35 : 1 },
+        { width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', opacity: opts.disabled ? (bioActive ? 0.5 : 0.35) : 1 },
         opts.outlined && { borderWidth: 1, borderColor: colors.line, backgroundColor: pressed ? colors.raised : colors.surface },
         !opts.outlined && pressed && { backgroundColor: colors.raised },
       ]}
@@ -208,6 +226,9 @@ function Dot({ index, filled, color, empty, wave }: { index: number; filled: boo
 const styles = StyleSheet.create({
   top: { alignItems: 'center', gap: 12, minHeight: 66 },
   dots: { flexDirection: 'row', alignItems: 'center', gap: 18, height: 22 },
+  bioWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  bioRing: { ...StyleSheet.absoluteFill, borderRadius: 28, borderWidth: 2 },
+  bioCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   msg: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 20 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },

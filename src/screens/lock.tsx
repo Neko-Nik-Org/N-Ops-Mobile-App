@@ -32,6 +32,7 @@ import { Haptics } from '@/lib/haptics';
 import { resetTo } from '@/lib/nav';
 import { PIN_LENGTH, triesLeft, verifyPin, waitLeftMs } from '@/lib/pin';
 import { loadPrefs, resetAccountPrefs, savePrefs } from '@/lib/prefs';
+import { ownerConfirmed } from '@/lib/ownerConfirm';
 import { useLocalSearchParams, useRouter } from '@/lib/router';
 import { useSession } from '@/lib/session';
 import { useColumn } from '@/theme/layout';
@@ -44,7 +45,7 @@ const clock = (ms: number) => {
 };
 
 /**
- * Unlock with PIN. Face ID / fingerprint is offered first (if it's on); cancelling shows the keypad.
+ * Unlock with PIN: the keypad shows first. If Face ID / fingerprint is on, the bottom-left key offers it on demand.
  * 3 wrong PINs: wait 5 minutes (biometrics still work). 9 wrong in total: the phone unlinks itself.
  * `resume=1` means we were opened over the screen the user left, so success goes back to it.
  */
@@ -62,6 +63,7 @@ export default function Lock() {
   const [now, setNow] = useState(Date.now());
   const [bio, setBio] = useState<BiometricInfo | null>(null);
   const [bioOn, setBioOn] = useState(false);
+  const [bioBusy, setBioBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [notice, setNotice] = useState('');
   const [unlinking, setUnlinking] = useState(false);
@@ -77,7 +79,10 @@ export default function Lock() {
     Haptics.success();
     setState('success');
     await new Promise<void>((r) => setTimeout(r, 400));
-    if (resume && router.canGoBack()) return router.back();
+    if (resume && router.canGoBack()) {
+      ownerConfirmed();
+      return router.back();
+    }
     const prefs = await loadPrefs();
     resetTo(router, prefs.setupDone ? '/home' : '/setup');
   }, [resume, router]);
@@ -94,8 +99,10 @@ export default function Lock() {
     async (info: BiometricInfo) => {
       if (!info.available || busy.current) return;
       busy.current = true;
+      setBioBusy(true);
       const r = await biometricUnlock('Unlock N-Ops');
       busy.current = false;
+      setBioBusy(false);
       if (r === 'ok') return void finish();
       if (r === 'changed') {
         // A face or finger was added to the phone: biometrics are off until the PIN turns them back on.
@@ -118,7 +125,6 @@ export default function Lock() {
         setUntil(Date.now() + wait);
         setState('locked');
       }
-      if (prefs.biometricLock) void tryBio(info);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -211,6 +217,7 @@ export default function Lock() {
       onDigit={onDigit}
       onBack={() => setPin((p) => p.slice(0, -1))}
       bio={bioKey}
+      bioActive={bioBusy && bio ? { icon: bio.kind === 'fingerprint' ? 'fingerprint' : 'faceId', text: bio.kind === 'fingerprint' ? 'Touch the sensor to unlock' : 'Look at your phone to unlock' } : undefined}
       compact={land}
       part={part}
     />

@@ -15,6 +15,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+import { useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar, View } from 'react-native';
@@ -24,8 +25,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useAutoLock } from '@/lib/autoLock';
 import { PrivacyCover } from '@/components/PrivacyCover';
-import { navRef } from '@/lib/router';
-import { SessionProvider } from '@/lib/session';
+import { DashboardProvider } from '@/lib/dashboard';
+import { resetAccountPrefs } from '@/lib/prefs';
+import { navRef, router } from '@/lib/router';
+import { SessionProvider, useSession } from '@/lib/session';
 import { MAX_W, useColumn } from '@/theme/layout';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import Code from './src/screens/code';
@@ -48,11 +51,21 @@ function Root() {
   const { ready, colors, scheme } = useTheme();
   const { landscape, left, right } = useColumn();
   useAutoLock();
+  const { session, clear } = useSession();
+  const onUnlinked = useCallback(() => {
+    void (async () => {
+      await clear();
+      await resetAccountPrefs();
+      router.resetTo('/scan');
+    })();
+  }, [clear]);
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
       <View style={{ flex: 1, width: '100%', maxWidth: landscape ? undefined : MAX_W, alignSelf: 'center', paddingLeft: landscape ? left : 0, paddingRight: landscape ? right : 0 }}>
+      {/* Keyed by device so unlinking (or linking another account) drops the old data. Loads while the splash plays. */}
+      <DashboardProvider key={session?.deviceId ?? 'none'} onUnlinked={onUnlinked}>
       <NavigationContainer ref={navRef} linking={linking} onReady={() => void BootSplash.hide({ fade: true })}>
         <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: colors.bg } }}>
           <Stack.Screen name="index" component={Index} options={{ animation: 'none' }} />
@@ -67,6 +80,7 @@ function Root() {
           <Stack.Screen name="link" component={Link} options={{ animation: 'none' }} />
         </Stack.Navigator>
       </NavigationContainer>
+      </DashboardProvider>
       </View>
       <PrivacyCover />
     </View>

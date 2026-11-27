@@ -19,7 +19,7 @@ import { Provider, atom, useAtom, useAtomValue, useSetAtom } from 'jotai';
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 import { api } from './api';
-import { authenticate, getBiometricInfo } from './biometrics';
+import { confirmOwner } from './ownerConfirm';
 import { ApiError } from './errors';
 import { loadPrefs, savePrefs } from './prefs';
 import { useSession } from './session';
@@ -130,8 +130,7 @@ export function useDashboard() {
     async (id: string, label: string, approve: boolean) => {
       if (!session) return false;
       // Approvals are sensitive: confirm it's really the owner holding the phone.
-      const bio = await getBiometricInfo();
-      if (bio.available && !(await authenticate(`${approve ? 'Approve' : 'Reject'}: ${label}`))) return false;
+      if (!(await confirmOwner(`${approve ? 'Approve' : 'Reject'}: ${label}`))) return false;
       try {
         await api.decideApproval(session, id, approve);
         setApproved((s) => new Set(s).add(id));
@@ -144,7 +143,7 @@ export function useDashboard() {
     [session, setApproved, setError],
   );
 
-  // Stable object so TopBar, Dock and the menu only re-render when something they read changes.
+  // Stable object so TopBar and the menu only re-render when something they read changes.
   return useMemo(
     () => ({ data, loading, refreshing, error, refresh: () => load('refresh'), decide, approvedIds, tags, selectedTagId, setSelectedTagId }),
     [data, loading, refreshing, error, load, decide, approvedIds, tags, selectedTagId, setSelectedTagId],

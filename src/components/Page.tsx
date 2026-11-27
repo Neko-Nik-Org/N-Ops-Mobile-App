@@ -21,13 +21,12 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme/ThemeProvider';
 import { brand, radius } from '@/theme/tokens';
 import { PressableScale } from './Buttons';
-import { Dock } from './Dock';
 import { Banner, Skeleton } from './Loading';
 import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 
-/** Room under the content so the floating dock never covers the last row. */
-const DOCK_SPACE = 120;
+/** Room under the content. */
+const BOTTOM_SPACE = 32;
 
 /** Page frame from the design: big title, optional right action, then the content. */
 export function Screen({
@@ -48,14 +47,13 @@ export function Screen({
   children: ReactNode;
 }) {
   const { colors } = useTheme();
-  // The dock lives inside the page so the side menu slides over it instead of under it.
   return (
     <View style={{ flex: 1 }}>
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.bg }}
         contentContainerStyle={{
           paddingHorizontal: 20,
-          paddingBottom: DOCK_SPACE,
+          paddingBottom: BOTTOM_SPACE,
         }}
         refreshControl={
           onRefresh ? (
@@ -96,7 +94,6 @@ export function Screen({
           children
         )}
       </ScrollView>
-      <Dock />
     </View>
   );
 }

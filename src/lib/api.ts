@@ -53,7 +53,17 @@ export interface Api {
   runWorkflow(session: Session, workflowId: number): Promise<void>;
   registerPush(session: Session, pushToken: string, platform: 'ios' | 'android', prefs: NotificationPrefs): Promise<void>;
   updateNotificationPrefs(session: Session, prefs: NotificationPrefs): Promise<void>;
+  /** The signed-in user's own profile (`GET /user/self/profile`). */
+  profile(session: Session): Promise<UserProfile>;
   unlink(session: Session): Promise<void>;
+}
+
+export interface UserProfile {
+  userName: string;
+  email: string;
+  emailVerified: boolean;
+  organization: string;
+  canApprove: boolean;
 }
 
 /** Called with the new session after the 3-hour token was renewed, so it can be saved. */
@@ -301,6 +311,22 @@ export const api: Api = {
   // shortcut: no push-token or notification-prefs routes in the API yet; prefs stay on the phone.
   async registerPush() {},
   async updateNotificationPrefs() {},
+  async profile(session) {
+    const p = await authed<{
+      user_name: string;
+      primary_email: string;
+      is_email_verified: boolean;
+      organization_name: string;
+      can_approve_approvals: boolean;
+    }>(session, '/user/self/profile');
+    return {
+      userName: p.user_name,
+      email: p.primary_email,
+      emailVerified: p.is_email_verified,
+      organization: p.organization_name,
+      canApprove: p.can_approve_approvals,
+    };
+  },
   async unlink(session) {
     await authed<void>(session, '/auth/device/logout', { method: 'DELETE' });
   },

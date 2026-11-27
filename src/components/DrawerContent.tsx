@@ -20,6 +20,8 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDashboard } from '@/lib/dashboard';
+import { hasPin } from '@/lib/pin';
+import { router } from '@/lib/router';
 import { MENU, type MenuItem } from '@/lib/menu';
 import { useSession } from '@/lib/session';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -42,6 +44,13 @@ export function DrawerContent({ state, navigation }: DrawerContentComponentProps
   const go = (name: string) => {
     navigation.navigate(name);
     navigation.closeDrawer();
+  };
+
+  // Same lock the auto-lock uses: opens over this screen and unlocking returns here.
+  const lockNow = async () => {
+    if (!(await hasPin())) return;
+    navigation.closeDrawer();
+    router.push({ pathname: '/lock', params: { resume: '1' } });
   };
 
   const row = (it: MenuItem) => {
@@ -104,7 +113,15 @@ export function DrawerContent({ state, navigation }: DrawerContentComponentProps
             Profile and settings
           </Text>
         </View>
-        <Icon name="chevronRight" size={16} color={colors.muted} strokeWidth={2} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Lock app"
+          hitSlop={6}
+          onPress={() => void lockNow()}
+          style={[styles.lockBtn, { borderColor: colors.line, backgroundColor: colors.surface }]}
+        >
+          <Icon name="lock" size={18} color={colors.text2} strokeWidth={1.9} />
+        </Pressable>
       </Pressable>
     </View>
   );
@@ -117,5 +134,6 @@ const styles = StyleSheet.create({
   row: { height: 44, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
   badge: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9 },
   footer: { borderTopWidth: 1, marginHorizontal: 12, paddingHorizontal: 8, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  lockBtn: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });

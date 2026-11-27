@@ -110,7 +110,7 @@ export function AnimatedSplash({ onDone, footer }: Props) {
   useEffect(() => {
     if (reduce) {
       t.value = SPLASH_MS;
-      const id = setTimeout(onDone, 400);
+      const id = setTimeout(onDone, SPLASH_MS);
       return () => clearTimeout(id);
     }
     t.value = withTiming(SPLASH_MS, { duration: SPLASH_MS, easing: Easing.linear });

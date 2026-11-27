@@ -18,17 +18,18 @@
 import { useEffect, useState } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
 
+import { isBioPromptOpen } from '@/lib/biometricLock';
 import { useSession } from '@/lib/session';
 import { useTheme } from '@/theme/ThemeProvider';
 import { LogoMark } from './Logo';
 
-/** Covers the app while it isn't in front, so the app switcher never shows the dashboard. */
+/** Covers the app while it isn't in front, so the app switcher never shows the dashboard. Not while the Face ID dialog is up: the lock screen stays visible behind it. */
 export function PrivacyCover() {
   const { colors } = useTheme();
   const { session } = useSession();
   const [away, setAway] = useState(false);
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => setAway(s !== 'active'));
+    const sub = AppState.addEventListener('change', (s) => setAway(s !== 'active' && !isBioPromptOpen()));
     return () => sub.remove();
   }, []);
   if (!away || !session) return null;

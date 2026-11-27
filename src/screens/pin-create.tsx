@@ -15,7 +15,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -27,14 +27,15 @@ import { PinPad, type PinState } from '@/components/PinPad';
 import { Text, type as T } from '@/components/Text';
 import { Haptics } from '@/lib/haptics';
 import { resetTo } from '@/lib/nav';
-import { enableBiometricUnlock } from '@/lib/biometricLock';
+import { getBiometricInfo, type BiometricInfo } from '@/lib/biometrics';
+import { biometricUnlock, enableBiometricUnlock } from '@/lib/biometricLock';
 import { PIN_LENGTH, setPin as savePin, verifyPin, weakPinReason } from '@/lib/pin';
 import { loadPrefs, savePrefs } from '@/lib/prefs';
 import { useLocalSearchParams, useRouter } from '@/lib/router';
 import { useColumn } from '@/theme/layout';
 import { useTheme } from '@/theme/ThemeProvider';
 
-type Problem = null | 'weak' | 'mismatch' | 'current';
+type Problem = null | 'weak' | 'mismatch' | 'current' | 'save';
 
 /**
  * Create a PIN right after linking: pick it, type it again, done. Easy PINs (000000, 123456, 112233...) are refused.
@@ -54,16 +55,34 @@ export default function PinCreate() {
   const [problem, setProblem] = useState<Problem>(null);
   const [done, setDone] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [weak, setWeak] = useState(false);
+  const [weakSeen, setWeakSeen] = useState(false);
+  const [bioInfo, setBioInfo] = useState<BiometricInfo | null>(null);
+  const [bioOn, setBioOn] = useState(false);
+
+  // Changing the PIN: Face ID / fingerprint can stand in for the current PIN, on demand (the keypad shows first).
+  useEffect(() => {
+    if (!change) return;
+    void Promise.all([getBiometricInfo(), loadPrefs()]).then(([info, p]) => {
+      setBioInfo(info);
+      setBioOn(p.biometricLock && info.available);
+    });
+  }, [change]);
 
   const confirm = step === 'confirm';
   const stepNo = bio ? 1 : (change ? 1 : 0) + (step === 'current' ? 0 : step === 'create' ? 1 : 2) || 1;
-  const state: PinState = done ? 'success' : problem === 'weak' ? 'weak' : problem === 'mismatch' || problem === 'current' ? 'wrong' : 'idle';
+  const state: PinState = done ? 'success' : saving ? 'verifying' : problem === 'weak' ? 'weak' : problem === 'mismatch' || problem === 'current' || problem === 'save' ? 'wrong' : 'idle';
 
   const onDigit = async (d: string) => {
     if (done || saving) return;
     const next = (problem ? '' : pin) + d;
     setProblem(null);
-    if (next.length < PIN_LENGTH) return setPin(next);
+    setPin(next);
+    if (next.length < PIN_LENGTH) return;
+    // Let the sixth dot show before the step moves on (every branch below clears or replaces the PIN).
+    setSaving(true);
+    await new Promise<void>((r) => setTimeout(r, 200));
+    setSaving(false);
     if (step === 'current') {
       setSaving(true);
       const r = await verifyPin(next);
@@ -86,12 +105,15 @@ export default function PinCreate() {
       return setProblem('current');
     }
     if (!confirm) {
-      const weak = weakPinReason(next);
-      if (weak) {
+      // An easy PIN is refused once (with an error); trying an easy one again is allowed, with a warning on confirm.
+      const easy = !!weakPinReason(next);
+      if (easy && !weakSeen) {
         Haptics.warning();
+        setWeakSeen(true);
         setProblem('weak');
         return setPin('');
       }
+      setWeak(easy);
       setFirst(next);
       setPin('');
       return setStep('confirm');
@@ -103,7 +125,15 @@ export default function PinCreate() {
     }
     setPin(next);
     setSaving(true);
-    await savePin(next);
+    try {
+      await savePin(next);
+    } catch {
+      // Never leave the keypad stuck: tell the user and let them try again.
+      Haptics.error();
+      setSaving(false);
+      setProblem('save');
+      return setPin('');
+    }
     Haptics.success();
     setSaving(false);
     setDone(true);
@@ -115,8 +145,12 @@ export default function PinCreate() {
     resetTo(router, prefs.setupDone ? '/home' : '/setup');
   };
 
-  const message = done
+  const message = saving
+    ? step === 'current' ? 'Checking…' : confirm ? 'Saving…' : 'Checking…'
+    : done
     ? bio ? 'Biometric unlock is on' : change ? 'PIN changed' : 'PIN set'
+    : problem === 'save'
+      ? "Couldn't save the PIN. Make sure a passcode is set on this phone, then try again."
     : problem === 'current'
       ? 'Wrong PIN. Try again.'
       : step === 'current'
@@ -124,14 +158,23 @@ export default function PinCreate() {
         : problem === 'mismatch'
       ? "PINs didn't match. Try again."
       : problem === 'weak'
-        ? 'Too easy to guess. Try another PIN.'
+        ? 'Too easy to guess. Pick another, or enter it again to use it anyway.'
         : confirm
-          ? 'Enter the same 6 digits again'
+          ? weak ? 'Easy to guess. Enter it again to use it anyway.' : 'Enter the same 6 digits again'
           : 'Avoid birthdays and repeated digits';
-  const messageColor = done ? colors.accent : problem === 'mismatch' || problem === 'current' ? colors.critText : problem === 'weak' ? colors.warnText : colors.muted;
+  const messageColor = saving ? colors.text2 : done ? colors.accent : problem === 'mismatch' || problem === 'current' || problem === 'save' ? colors.critText : problem === 'weak' ? colors.warnText : confirm && weak ? colors.warnText : colors.muted;
+
+  const bioKey =
+    change && step === 'current' && bioOn && bioInfo
+      ? {
+          icon: bioInfo.kind === 'fingerprint' ? ('fingerprint' as const) : ('faceId' as const),
+          label: `Use ${bioInfo.label}`,
+          onPress: () => void biometricUnlock('Confirm it’s you').then((r) => r === 'ok' && setStep('create')),
+        }
+      : undefined;
 
   const pad = (part: 'all' | 'dots' | 'keys') => (
-    <PinPad pin={pin} state={state} message={message} messageColor={messageColor} onDigit={(d) => void onDigit(d)} onBack={() => setPin((p) => p.slice(0, -1))} compact={land} part={part} />
+    <PinPad pin={pin} state={state} message={message} messageColor={messageColor} onDigit={(d) => void onDigit(d)} onBack={() => setPin((p) => p.slice(0, -1))} bio={bioKey} compact={land} part={part} />
   );
 
   const title = done ? (bio ? 'Biometric unlock is on' : change ? 'PIN changed' : "You're all set") : step === 'current' ? (bio ? 'Enter your PIN' : 'Enter your current PIN') : confirm ? 'Confirm your PIN' : 'Create your PIN';
@@ -160,6 +203,7 @@ export default function PinCreate() {
           onPress={() => {
             setStep('create');
             setFirst('');
+            setWeak(false);
             setPin('');
             setProblem(null);
           }}

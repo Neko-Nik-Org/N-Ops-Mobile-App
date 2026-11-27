@@ -18,7 +18,7 @@
 import { Haptics } from '@/lib/haptics';
 import { useLocalSearchParams, useRouter } from '@/lib/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { cancelAnimation, Easing, useAnimatedProps, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, G, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -173,6 +173,21 @@ export default function Linking() {
   const server = resolveServer(params.server);
   const code = params.code ?? '';
   const userId = parseUserId(params.userId);
+  // A link or QR can name any server; unless it's the built-in one, the user must approve it before this phone sends it anything.
+  const [approved, setApproved] = useState(() => !server || server === normalizeServer(config.defaultServer));
+
+  useEffect(() => {
+    if (approved || !server) return;
+    Alert.alert(
+      'Link to this server?',
+      `This phone will link to ${hostOf(server)}. Only continue if you got this link or QR code from your own N-Ops admin.`,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resetTo(router, '/scan') },
+        { text: 'Link', onPress: () => setApproved(true) },
+      ],
+      { cancelable: false },
+    );
+  }, [approved, server, router]);
 
   const run = useCallback(async () => {
     setError(null);
@@ -205,10 +220,10 @@ export default function Linking() {
   }, [server, code, userId, save, router]);
 
   useEffect(() => {
-    if (started.current === attempt) return;
+    if (!approved || started.current === attempt) return;
     started.current = attempt;
     void run();
-  }, [attempt, run]);
+  }, [attempt, run, approved]);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={[styles.root, { paddingTop: insets.top + 9, paddingBottom: insets.bottom + 6 }]} bounces={false}>

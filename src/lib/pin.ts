@@ -41,9 +41,11 @@ export const AUTO_LOCK_OPTIONS = [
   { label: '15 min', ms: 900_000 },
 ] as const;
 
-// shortcut: 10k rounds of PBKDF2-SHA256 in JS (a 310k-round native one would take seconds in Hermes);
+// shortcut: 50k rounds of PBKDF2-SHA256 in JS (a 310k-round native one would take seconds in Hermes);
 // the Keychain, the try counter and the wait are the real protection. Upgrade to a native KDF.
-const ROUNDS = 10_000;
+const ROUNDS = 50_000;
+/** Records saved before `rounds` was stored used this many. */
+const LEGACY_ROUNDS = 10_000;
 
 const KEY = 'nops.pin.v1';
 const opts = { service: KEY, accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
@@ -64,13 +66,15 @@ export function weakPinReason(pin: string): string | null {
 interface PinRecord {
   salt: string;
   hash: string;
+  /** PBKDF2 rounds used for `hash`; absent on records from before this was stored. */
+  rounds?: number;
   /** Wrong tries since the last correct PIN. */
   fails: number;
   /** Epoch ms; 0 when not waiting. */
   lockedUntil: number;
 }
 
-const hashOf = (pin: string, salt: string) => bytesToHex(pbkdf2(sha256, utf8ToBytes(pin), utf8ToBytes(salt), { c: ROUNDS, dkLen: 32 }));
+const hashOf = (pin: string, salt: string, rounds = LEGACY_ROUNDS) => bytesToHex(pbkdf2(sha256, utf8ToBytes(pin), utf8ToBytes(salt), { c: rounds, dkLen: 32 }));
 
 function same(a: string, b: string) {
   let diff = a.length ^ b.length;
@@ -106,7 +110,10 @@ async function read(): Promise<PinRecord | null> {
   }
 }
 
-const write = (r: PinRecord) => Keychain.setGenericPassword('pin', JSON.stringify(r), opts);
+const write = async (r: PinRecord) => {
+  // setGenericPassword answers `false` (not an error) when the Keychain refuses, e.g. no device passcode.
+  if (!(await Keychain.setGenericPassword('pin', JSON.stringify(r), opts))) throw new Error('Keychain refused to save the PIN');
+};
 
 export async function hasPin(): Promise<boolean> {
   return (await read()) !== null;
@@ -115,7 +122,7 @@ export async function hasPin(): Promise<boolean> {
 export async function setPin(pin: string): Promise<void> {
   // The salt only has to be unique, not secret, so no secure random source is needed.
   const salt = bytesToHex(sha256(utf8ToBytes(`${Date.now()}.${Math.random()}.${Math.random()}`))).slice(0, 32);
-  await write({ salt, hash: hashOf(pin, salt), fails: 0, lockedUntil: 0 });
+  await write({ salt, hash: hashOf(pin, salt, ROUNDS), rounds: ROUNDS, fails: 0, lockedUntil: 0 });
 }
 
 export async function clearPin(): Promise<void> {
@@ -135,7 +142,10 @@ export async function triesLeft(): Promise<number> {
 export async function verifyPin(pin: string): Promise<Attempt> {
   const rec = await read();
   if (!rec) return { ok: false, reason: 'unlink' };
-  const { rec: next, result } = nextAttempt(rec, same(hashOf(pin, rec.salt), rec.hash), Date.now());
-  if (next !== rec) await write(next);
+  const { rec: next, result } = nextAttempt(rec, same(hashOf(pin, rec.salt, rec.rounds), rec.hash), Date.now());
+  if (result.ok && (rec.rounds ?? LEGACY_ROUNDS) < ROUNDS) {
+    // An older, cheaper hash: re-hash now that the PIN is known.
+    await write({ ...next, hash: hashOf(pin, rec.salt, ROUNDS), rounds: ROUNDS });
+  } else if (next !== rec) await write(next);
   return result;
 }

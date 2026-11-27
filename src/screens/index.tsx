@@ -20,13 +20,11 @@ import { useEffect, useState } from 'react';
 
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { hasPin } from '@/lib/pin';
-import { loadPrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
 
 /**
  * Splash on every cold start, then:
- *   first launch           → Welcome 1–4
- *   seen welcome, unlinked → Scan QR
+ *   not linked (never finished the QR login) → Welcome 1–4
  *   linked                 → Unlock with PIN (Face ID first) → Dashboard, or "Make it yours" if setup was never finished
  *   linked without a PIN   → Create a PIN (linked before PINs existed)
  */
@@ -39,8 +37,7 @@ export default function SplashRoute() {
     if (!animDone || status !== 'ready') return;
     void (async () => {
       if (session) return router.replace((await hasPin()) ? '/lock' : '/pin-create');
-      const prefs = await loadPrefs();
-      router.replace(prefs.onboardingSeen ? '/scan' : '/welcome');
+      router.replace('/welcome');
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animDone, status]);

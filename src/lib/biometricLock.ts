@@ -29,14 +29,21 @@ const base = { service: KEY };
 
 export type BioResult = 'ok' | 'changed' | 'cancelled';
 
+let prompting = false;
+/** True while the system Face ID / fingerprint dialog is up; iOS reports the app as inactive meanwhile. */
+export const isBioPromptOpen = () => prompting;
+
 /** Reads the secret: asks for Face ID / fingerprint. */
 export async function biometricUnlock(prompt: string): Promise<BioResult> {
+  prompting = true;
   try {
     const c = await Keychain.getGenericPassword({ ...base, authenticationPrompt: { title: prompt, cancel: 'Use PIN' } });
     // Nothing there although we stored it: the OS dropped it because the set of faces/fingers changed.
     return c ? 'ok' : 'changed';
   } catch {
     return 'cancelled'; // the user backed out, or the sensor failed: keep biometrics, show the keypad
+  } finally {
+    prompting = false;
   }
 }
 

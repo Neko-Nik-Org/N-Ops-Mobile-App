@@ -19,14 +19,14 @@ import { useFocusEffect, useRouter } from '@/lib/router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Linking, StyleSheet, View } from 'react-native';
 
-import { IconTile } from '@/components/Bits';
+import { Chip, IconTile } from '@/components/Bits';
 import { PressableScale } from '@/components/Buttons';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Page';
 import { PermissionSheet } from '@/components/PermissionSheet';
 import { Text, type as T } from '@/components/Text';
 import { Toggle } from '@/components/Toggle';
-import { api } from '@/lib/api';
+import { api, type UserProfile } from '@/lib/api';
 import { disableBiometricUnlock } from '@/lib/biometricLock';
 import { getBiometricInfo, unlockTitle, type BiometricInfo } from '@/lib/biometrics';
 import { hostOf, workspaceLabel } from '@/lib/format';
@@ -34,6 +34,7 @@ import { resetTo } from '@/lib/nav';
 import { AUTO_LOCK_OPTIONS } from '@/lib/pin';
 import { loadPrefs, resetAccountPrefs, savePrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
+import { version } from '../../../package.json';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { ThemePref } from '@/theme/tokens';
 import { radius } from '@/theme/tokens';
@@ -47,12 +48,18 @@ export default function Profile() {
   const [bioOn, setBioOn] = useState(false);
   const [autoLock, setAutoLock] = useState<number>(60_000);
   const [explainBio, setExplainBio] = useState(false);
+  const [info, setInfo] = useState<UserProfile | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       void loadPrefs().then((p) => setBioOn(p.biometricLock));
     }, []),
   );
+
+  useEffect(() => {
+    if (session) void api.profile(session).then(setInfo).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.userId]);
 
   useEffect(() => {
     void getBiometricInfo().then(setBio);
@@ -96,44 +103,82 @@ export default function Profile() {
     <Screen title="Profile">
 
       {session ? (
-        <View style={[styles.card, styles.person, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+        <View style={styles.person}>
           <View style={[styles.avatar, { backgroundImage: 'linear-gradient(135deg, #4CF2C0, #8A7CFF)' }]}>
-            <Text f="display700" size={18} lh={22} color="#06281F">
+            <Text f="display700" size={28} lh={34} color="#06281F">
               {session.user.initials}
             </Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text f="body600" size={16} lh={22}>
-              {session.user.displayName}
-            </Text>
-            <Text f="mono400" size={12} lh={16} color={colors.muted}>
-              {workspaceLabel(session.workspace)} · {hostOf(session.server)}
-            </Text>
-          </View>
+          <Text f="display600" size={22} lh={28} color={colors.textStrong} align="center">
+            {session.user.displayName}
+          </Text>
+          <Text f="mono400" size={12} lh={16} color={colors.muted} align="center">
+            {workspaceLabel(session.workspace)} · {hostOf(session.server)}
+          </Text>
+          {info ? (
+            <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
+              {info.canApprove ? <Chip label="Approver" tone="violet" /> : null}
+              <Chip label={info.emailVerified ? 'Email verified' : 'Email not verified'} tone={info.emailVerified ? 'ok' : 'warn'} />
+            </View>
+          ) : null}
         </View>
       ) : null}
 
+      {info ? (
+        <>
+          <Text {...T.label} color={colors.text2} style={styles.section}>
+            Account
+          </Text>
+          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+            {(
+              [
+                ['Email', info.email],
+                ['Username', info.userName],
+                ['Organization', info.organization],
+              ] as const
+            ).map(([label, value], i) => (
+              <View key={label} style={[styles.row, i > 0 && { borderTopWidth: 1, borderTopColor: colors.line2 }]}>
+                <Text size={14} lh={20} color={colors.muted}>
+                  {label}
+                </Text>
+                <Text f="body500" size={14} lh={20} align="right" numberOfLines={1} style={{ flex: 1 }}>
+                  {value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+
       <Text {...T.label} color={colors.text2} style={styles.section}>
-        Appearance
+        Security
       </Text>
-      <View style={[styles.segment, { backgroundColor: colors.raised }]} accessibilityRole="radiogroup">
-        {options.map((o) => {
-          const on = pref === o.key;
-          return (
-            <PressableScale
-              key={o.key}
-              accessibilityRole="button"
-              accessibilityLabel={`${o.label} appearance`}
-              accessibilityState={{ selected: on }}
-              onPress={() => setPref(o.key)}
-              style={[styles.segItem, on && { backgroundColor: colors.surface, boxShadow: colors.shadowSm }]}
-            >
-              <Text f={on ? 'body600' : 'body500'} size={14} lh={18} color={on ? colors.textStrong : colors.muted}>
-                {o.label}
-              </Text>
-            </PressableScale>
-          );
-        })}
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+        {bio?.available ? (
+          <View style={styles.row}>
+            <IconTile icon="faceId" tone="ok" iconSize={18} strokeWidth={1.8} />
+            <Text f="body500" size={15} lh={20} style={{ flex: 1 }}>
+              {unlockTitle(bio)}
+            </Text>
+            <Toggle value={bioOn} onValueChange={(v) => void toggleBio(v)} accessibilityLabel={unlockTitle(bio)} />
+          </View>
+        ) : null}
+        <PressableScale
+          accessibilityLabel="Change PIN"
+          onPress={() => router.push({ pathname: '/pin-create', params: { change: '1' } })}
+          style={[styles.row, bio?.available && { borderTopWidth: 1, borderTopColor: colors.line2 }]}
+        >
+          <IconTile icon="lock" tone="ok" />
+          <View style={{ flex: 1 }}>
+            <Text f="body500" size={15} lh={20}>
+              Change PIN
+            </Text>
+            <Text size={12} lh={16} color={colors.muted}>
+              Locks after {AUTO_LOCK_OPTIONS.find((o) => o.ms === autoLock)?.label ?? 'a while'} away
+            </Text>
+          </View>
+          <Icon name="chevronRight" size={18} color={colors.muted} />
+        </PressableScale>
       </View>
 
       <Text {...T.label} color={colors.text2} style={styles.section}>
@@ -163,36 +208,47 @@ export default function Profile() {
       </View>
 
       <Text {...T.label} color={colors.text2} style={styles.section}>
-        Security and alerts
+        Preferences
       </Text>
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
-        {bio?.available ? (
-          <View style={styles.row}>
-            <IconTile icon="faceId" tone="ok" iconSize={18} strokeWidth={1.8} />
-            <Text f="body500" size={15} lh={20} style={{ flex: 1 }}>
-              {unlockTitle(bio)}
-            </Text>
-            <Toggle value={bioOn} onValueChange={(v) => void toggleBio(v)} accessibilityLabel={unlockTitle(bio)} />
-          </View>
-        ) : null}
-        <PressableScale
-          accessibilityLabel="Change PIN"
-          onPress={() => router.push({ pathname: '/pin-create', params: { change: '1' } })}
-          style={[styles.row, bio?.available && { borderTopWidth: 1, borderTopColor: colors.line2 }]}
-        >
-          <IconTile icon="lock" tone="ok" />
-          <Text f="body500" size={15} lh={20} style={{ flex: 1 }}>
-            Change PIN
-          </Text>
-          <Icon name="chevronRight" size={18} color={colors.muted} />
-        </PressableScale>
-        <PressableScale accessibilityLabel="Notification settings" onPress={() => void Linking.openSettings()} style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.line2 }]}>
+      <View style={[styles.segment, { backgroundColor: colors.raised }]} accessibilityRole="radiogroup">
+        {options.map((o) => {
+          const on = pref === o.key;
+          return (
+            <PressableScale
+              key={o.key}
+              accessibilityRole="button"
+              accessibilityLabel={`${o.label} appearance`}
+              accessibilityState={{ selected: on }}
+              onPress={() => setPref(o.key)}
+              style={[styles.segItem, on && { backgroundColor: colors.surface, boxShadow: colors.shadowSm }]}
+            >
+              <Text f={on ? 'body600' : 'body500'} size={14} lh={18} color={on ? colors.textStrong : colors.muted}>
+                {o.label}
+              </Text>
+            </PressableScale>
+          );
+        })}
+      </View>
+      <View style={[styles.card, { marginTop: 12, backgroundColor: colors.surface, borderColor: colors.line }]}>
+        <PressableScale accessibilityLabel="Notification settings" onPress={() => void Linking.openSettings()} style={styles.row}>
           <IconTile icon="bell" tone="violet" />
-          <Text f="body500" size={15} lh={20} style={{ flex: 1 }}>
-            Notification settings
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text f="body500" size={15} lh={20}>
+              Notifications
+            </Text>
+            <Text size={12} lh={16} color={colors.muted}>
+              Approvals and incidents
+            </Text>
+          </View>
           <Icon name="chevronRight" size={18} color={colors.muted} />
         </PressableScale>
+      </View>
+
+      <View style={[styles.card, styles.note, { backgroundColor: colors.raised, borderColor: colors.line }]}>
+        <Icon name="servers" size={16} color={colors.muted} />
+        <Text size={12} lh={17} color={colors.text2} style={{ flex: 1 }}>
+          Users, roles, permissions and tags are managed in the web admin.
+        </Text>
       </View>
 
       <PressableScale accessibilityLabel="Sign out of this device" onPress={unlink} style={[styles.card, styles.row, { marginTop: 24, backgroundColor: colors.surface, borderColor: colors.line }]}>
@@ -201,6 +257,9 @@ export default function Profile() {
           Sign out of this device
         </Text>
       </PressableScale>
+      <Text f="mono400" size={11} lh={16} color={colors.muted} align="center" style={{ marginTop: 14 }}>
+        N-Ops {version}
+      </Text>
       <PermissionSheet
         kind="biometrics"
         visible={explainBio}
@@ -216,8 +275,9 @@ export default function Profile() {
 
 const styles = StyleSheet.create({
   card: { borderRadius: radius.card, borderWidth: 1, overflow: 'hidden' },
-  person: { marginTop: 22, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
-  avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  person: { marginTop: 22, alignItems: 'center', gap: 6 },
+  note: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  avatar: { width: 84, height: 84, borderRadius: 42, marginBottom: 6, alignItems: 'center', justifyContent: 'center' },
   section: { marginTop: 24, marginBottom: 10 },
   segment: { flexDirection: 'row', padding: 4, borderRadius: radius.sm + 2, gap: 4 },
   segItem: { flex: 1, height: 40, borderRadius: radius.code, alignItems: 'center', justifyContent: 'center' },

@@ -16,15 +16,12 @@
  */
 
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { useCallback } from 'react';
 import { View, useWindowDimensions } from 'react-native';
 
 import { TopBar } from '@/components/TopBar';
 import { DrawerContent } from '@/components/DrawerContent';
 import { HIDDEN, MENU } from '@/lib/menu';
-import { DashboardProvider } from '@/lib/dashboard';
-import { Redirect, router } from '@/lib/router';
-import { resetAccountPrefs } from '@/lib/prefs';
+import { Redirect } from '@/lib/router';
 import { useSession } from '@/lib/session';
 import { PERMANENT_W } from '@/theme/layout';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -50,23 +47,10 @@ const built: Record<string, React.ComponentType> = {
 const items = [...MENU.flatMap((g) => g.items), ...HIDDEN];
 
 export default function Tabs() {
-  const { session, status, clear } = useSession();
-
-  const onUnlinked = useCallback(() => {
-    void (async () => {
-      await clear();
-      await resetAccountPrefs();
-      router.resetTo('/scan');
-    })();
-  }, [clear]);
-
+  const { session, status } = useSession();
+  // The data itself is loaded by DashboardProvider in App.tsx, already during the splash.
   if (status === 'ready' && !session) return <Redirect href="/scan" />;
-
-  return (
-    <DashboardProvider onUnlinked={onUnlinked}>
-      <TabsInner />
-    </DashboardProvider>
-  );
+  return <TabsInner />;
 }
 
 function TabsInner() {
