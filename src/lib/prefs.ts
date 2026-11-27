@@ -17,6 +17,8 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { disableBiometricUnlock } from './biometricLock';
+import { clearPin } from './pin';
 import type { ThemePref } from '@/theme/tokens';
 
 /** Non-secret, per-device preferences. Secrets live in `session.ts` (Keychain). */
@@ -37,6 +39,8 @@ export interface Prefs {
   lastServer: string;
   /** Tag the whole app is scoped to; null = all tags. */
   selectedTagId: number | null;
+  /** Lock again after this long in the background (0 = right away). */
+  autoLockMs: number;
 }
 
 export const defaultNotificationPrefs: NotificationPrefs = {
@@ -50,10 +54,11 @@ export const defaultPrefs: Prefs = {
   onboardingSeen: false,
   setupDone: false,
   themePref: 'system',
-  biometricLock: true,
+  biometricLock: false,
   notifications: defaultNotificationPrefs,
   lastServer: '',
   selectedTagId: null,
+  autoLockMs: 60_000,
 };
 
 const KEY = 'nops.prefs.v1';
@@ -85,10 +90,12 @@ export async function savePrefs(patch: Partial<Prefs>): Promise<Prefs> {
 
 /** Called on unlink: keep appearance, forget everything tied to the old account. */
 export async function resetAccountPrefs(): Promise<void> {
+  await clearPin();
+  await disableBiometricUnlock();
   const current = await loadPrefs();
   await savePrefs({
     setupDone: false,
-    biometricLock: defaultPrefs.biometricLock,
+    biometricLock: false,
     notifications: defaultNotificationPrefs,
     themePref: current.themePref,
     selectedTagId: null,

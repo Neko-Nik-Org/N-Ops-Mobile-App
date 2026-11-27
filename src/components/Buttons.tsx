@@ -22,6 +22,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import { useTheme } from '@/theme/ThemeProvider';
 import { brand, durations, radius } from '@/theme/tokens';
 import { easeOut } from '@/theme/motion';
+import { Spinner } from './Loading';
 import { Icon, type IconName } from './Icon';
 import { Text } from './Text';
 
@@ -71,30 +72,33 @@ interface PrimaryButtonProps {
   icon?: IconName;
   iconPosition?: 'left' | 'right';
   disabled?: boolean;
+  /** Shows a spinner in place of the icon; the button keeps its size and ignores taps. */
+  loading?: boolean;
   style?: StyleProp<ViewStyle>;
   /** `mint` forces the brand mint in both themes (used over the camera). */
-  tone?: 'default' | 'mint';
+  tone?: 'default' | 'mint' | 'danger';
 }
 
 /** 56 px main action. Mint on dark, ink on light. */
-export function PrimaryButton({ label, onPress, icon, iconPosition = 'right', disabled, style, tone = 'default' }: PrimaryButtonProps) {
+export function PrimaryButton({ label, onPress, icon, iconPosition = 'right', disabled, loading, style, tone = 'default' }: PrimaryButtonProps) {
   const { colors } = useTheme();
   const mint = tone === 'mint';
-  const fg = disabled ? colors.disabledText : mint ? brand.onMint : colors.onPrimary;
-  const bg = disabled ? colors.disabledBg : mint ? brand.mint : colors.primary;
-  const iconEl = icon ? <Icon name={icon} size={icon === 'arrowRight' ? 18 : 20} color={fg} strokeWidth={icon === 'arrowRight' ? 2.2 : 2} /> : null;
+  const danger = tone === 'danger';
+  const fg = disabled ? colors.disabledText : mint ? brand.onMint : danger ? colors.onDanger : colors.onPrimary;
+  const bg = disabled ? colors.disabledBg : mint ? brand.mint : danger ? colors.danger : colors.primary;
+  const iconEl = loading ? <Spinner size={20} color={fg} /> : icon ? <Icon name={icon} size={icon === 'arrowRight' ? 18 : 20} color={fg} strokeWidth={icon === 'arrowRight' ? 2.2 : 2} /> : null;
   return (
     <PressableScale
-      onPress={onPress}
+      onPress={loading ? undefined : onPress}
       disabled={disabled}
       accessibilityLabel={label}
       style={[styles.primary, { backgroundColor: bg }, style]}
     >
-      {iconPosition === 'left' && iconEl}
+      {(iconPosition === 'left' || loading) && iconEl}
       <Text f="body600" size={16} color={fg}>
         {label}
       </Text>
-      {iconPosition === 'right' && iconEl}
+      {iconPosition === 'right' && !loading && iconEl}
     </PressableScale>
   );
 }

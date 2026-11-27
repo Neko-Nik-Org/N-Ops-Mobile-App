@@ -46,6 +46,10 @@ export interface Palette {
   crit: string;
   critText: string;
   critSoft: string;
+  danger: string;
+  onDanger: string;
+  /** Behind bottom sheets. */
+  sheetScrim: string;
   violet: string;
   violetText: string;
   violetSoft: string;
@@ -89,6 +93,9 @@ export const palettes: Record<ThemeName, Palette> = {
     crit: '#FF6B81',
     critText: '#FF8597',
     critSoft: 'rgba(255,107,129,0.14)',
+    danger: '#FF6B81',
+    onDanger: '#0B1118',
+    sheetScrim: 'rgba(5,8,12,0.62)',
     violet: '#8A7CFF',
     violetText: '#B9B1FF',
     violetSoft: 'rgba(138,124,255,0.16)',
@@ -130,6 +137,9 @@ export const palettes: Record<ThemeName, Palette> = {
     crit: '#E5485F',
     critText: '#C2334D',
     critSoft: 'rgba(229,72,95,0.10)',
+    danger: '#C2334D',
+    onDanger: '#FFFFFF',
+    sheetScrim: 'rgba(11,17,24,0.38)',
     violet: '#8A7CFF',
     violetText: '#6152E0',
     violetSoft: 'rgba(97,82,224,0.10)',

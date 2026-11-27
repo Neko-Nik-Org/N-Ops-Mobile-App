@@ -50,8 +50,6 @@ export interface DeviceInfo {
   model: string;
 }
 
-export type AlertSeverity = 'critical' | 'warning' | 'success' | 'info';
-
 export interface FleetSummary {
   total: number;
   online: number;
@@ -59,22 +57,27 @@ export interface FleetSummary {
   offline: number;
 }
 
-export interface ApprovalRequest {
+export type ServerStatus = 'online' | 'degraded' | 'offline';
+
+export interface Server {
   id: string;
-  action: string;
-  target: string;
-  requestedBy: string;
-  requestedAt: string;
-  approvalsGiven: number;
-  approvalsRequired: number;
+  name: string;
+  kind: string;
+  tagId: number;
+  tagName: string;
+  cpuPercent: number | null;
+  memoryPercent: number | null;
+  status: ServerStatus;
+  offlineMinutes: number | null;
 }
 
-export interface AlertItem {
+/** A workflow run waiting for someone to approve or reject it. */
+export interface ApprovalRequest {
   id: string;
-  severity: AlertSeverity;
-  title: string;
-  subject: string;
-  at: string;
+  code: string;
+  action: string;
+  target: string;
+  expiresLabel: string;
 }
 
 export interface Tag {
@@ -85,7 +88,39 @@ export interface Tag {
 
 export interface Dashboard {
   fleet: FleetSummary;
+  servers: Server[];
   approvals: ApprovalRequest[];
-  alerts: AlertItem[];
+  workflowRuns24h: number;
+  workflowRunsFailed: number;
+  workflowRunsWaiting: number;
+  workflowRunTrend: number[];
+  alertsSent24h: number;
+  alertsLatestSource: string;
+  alertsLatestTime: string;
   unreadCount: number;
+}
+
+export interface VaultProject {
+  projectId: number;
+  projectName: string;
+}
+
+export interface SecretKey {
+  secretId: number;
+  name: string;
+  currentVersion: number;
+  isHidden: boolean;
+  updatedAt: string;
+}
+
+export interface Workflow {
+  workflowId: number;
+  tagId: number;
+  name: string;
+  description: string;
+  enabled: boolean;
+  triggerKind: string;
+  /** "running", "waiting_approval", "success", "failed"… of the latest run. */
+  lastRunStatus: string | null;
+  lastRunStartedAt: string | null;
 }

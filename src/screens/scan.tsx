@@ -28,6 +28,7 @@ import { usePulse } from '@/components/Bits';
 import { PrimaryButton, RoundIconButton, SecondaryButton } from '@/components/Buttons';
 import { Icon } from '@/components/Icon';
 import { BrandGradient, useSvgId } from '@/components/Logo';
+import { PermissionSheet } from '@/components/PermissionSheet';
 import { Text } from '@/components/Text';
 import { parseLinkPayload } from '@/lib/linkPayload';
 import { useColumn } from '@/theme/layout';
@@ -49,6 +50,7 @@ export default function Scan() {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
   const [denied, setDenied] = useState(false);
+  const [explain, setExplain] = useState(false);
   const [focused, setFocused] = useState(false);
   const [torch, setTorch] = useState(false);
   const [hint, setHint] = useState<Hint>('searching');
@@ -150,13 +152,23 @@ export default function Scan() {
           <View style={{ alignSelf: 'stretch', paddingHorizontal: 20 }}>
             <PrimaryButton
               label={canAsk ? 'Allow camera' : 'Open Settings'}
-              onPress={() => (canAsk ? void requestPermission().then((ok) => setDenied(!ok)) : void Linking.openSettings())}
+              onPress={() => (canAsk ? setExplain(true) : void Linking.openSettings())}
               tone="mint"
               style={{ height: 48 }}
             />
           </View>
         </View>
       )}
+
+      <PermissionSheet
+        kind="camera"
+        visible={explain}
+        onCancel={() => setExplain(false)}
+        onContinue={() => {
+          setExplain(false);
+          void requestPermission().then((ok) => setDenied(!ok));
+        }}
+      />
 
       <View style={[styles.topBar, { top: insets.top + 9 }]}>
         <RoundIconButton icon="chevronLeft" accessibilityLabel="Back" background={brand.camera.button} color={brand.camera.text} onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome'))} />

@@ -41,13 +41,13 @@ export function TagSelect() {
         accessibilityLabel={`Tag: ${label}`}
         disabled={empty}
         onPress={() => setOpen(true)}
-        style={[styles.pill, { backgroundColor: colors.surface, opacity: empty ? 0.6 : 1 }]}
+        style={[styles.pill, { backgroundColor: colors.surface, borderColor: colors.line, opacity: empty ? 0.6 : 1 }]}
       >
-        <Icon name="tag" size={14} color={colors.violetText} strokeWidth={2} />
-        <Text f="body500" size={14} lh={18} numberOfLines={1} style={{ flexShrink: 1 }}>
+        <Icon name="tag" size={15} color={colors.muted} strokeWidth={2.2} />
+        <Text f="body600" size={14} lh={18} color={colors.textStrong} numberOfLines={1} style={{ flexShrink: 1 }}>
           {label}
         </Text>
-        <Icon name="chevronDown" size={14} color={colors.muted} strokeWidth={2.2} />
+        <Icon name="chevronDown" size={16} color={colors.muted} strokeWidth={2.2} />
       </Pressable>
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)} supportedOrientations={['portrait', 'landscape']}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)} accessibilityLabel="Close">
@@ -64,9 +64,9 @@ export function TagSelect() {
                       setSelectedTagId(o.id);
                       setOpen(false);
                     }}
-                    style={[styles.option, on && { backgroundColor: colors.raised }]}
+                    style={[styles.option, on && { backgroundColor: colors.okSoft }]}
                   >
-                    <Text f={on ? 'body600' : 'body500'} size={15} lh={20} style={{ flex: 1 }}>
+                    <Text f={on ? 'body600' : 'body500'} size={15} lh={20} color={on ? colors.accent : colors.text} style={{ flex: 1 }}>
                       {o.name}
                     </Text>
                     {on ? <Icon name="check" size={18} color={colors.accent} strokeWidth={2.4} /> : null}
@@ -82,7 +82,7 @@ export function TagSelect() {
 }
 
 const styles = StyleSheet.create({
-  pill: { height: 36, alignSelf: 'flex-start', maxWidth: '100%', paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  pill: { height: 36, alignSelf: 'flex-start', maxWidth: '100%', paddingLeft: 12, paddingRight: 10, borderRadius: 12, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   sheet: { width: '100%', maxWidth: 360, maxHeight: '70%', borderRadius: 16, borderWidth: 1, padding: 8 },
   option: { height: 48, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },

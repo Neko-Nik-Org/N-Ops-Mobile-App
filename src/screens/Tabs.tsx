@@ -17,12 +17,11 @@
 
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useCallback } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 
 import { TopBar } from '@/components/TopBar';
-import { ComingNext } from '@/components/ComingNext';
 import { DrawerContent } from '@/components/DrawerContent';
-import { EXTRA, MENU } from '@/lib/menu';
+import { HIDDEN, MENU } from '@/lib/menu';
 import { DashboardProvider } from '@/lib/dashboard';
 import { Redirect, router } from '@/lib/router';
 import { resetAccountPrefs } from '@/lib/prefs';
@@ -32,14 +31,23 @@ import { useTheme } from '@/theme/ThemeProvider';
 import Alerts from './tabs/alerts';
 import Approvals from './tabs/approvals';
 import Home from './tabs/home';
+import Logs from './tabs/logs';
+import Metrics from './tabs/metrics';
 import Profile from './tabs/profile';
+import Server from './tabs/server';
 import Servers from './tabs/servers';
+import Services from './tabs/services';
+import Tools from './tabs/tools';
+import Vault from './tabs/vault';
+import Workflows from './tabs/workflows';
 
 const Drawer = createDrawerNavigator();
 
-// Screens that exist; every other menu entry shows the "designed next" placeholder.
-const built: Record<string, React.ComponentType> = { home: Home, servers: Servers, approvals: Approvals, alerts: Alerts, profile: Profile };
-const items = [...MENU.flatMap((s) => s.children ?? [s]), ...EXTRA];
+const built: Record<string, React.ComponentType> = {
+  home: Home, servers: Servers, server: Server, services: Services, metrics: Metrics, logs: Logs, workflows: Workflows,
+  tools: Tools, approvals: Approvals, vault: Vault, alerts: Alerts, profile: Profile,
+};
+const items = [...MENU.flatMap((g) => g.items), ...HIDDEN];
 
 export default function Tabs() {
   const { session, status, clear } = useSession();
@@ -67,25 +75,21 @@ function TabsInner() {
   const permanent = width >= PERMANENT_W;
 
   return (
-    <Drawer.Navigator
-      drawerContent={(props) => <DrawerContent {...props} />}
-      screenOptions={{
-        headerShown: true,
-        header: ({ options }) => <TopBar title={options.title ?? ''} />,
-        drawerType: permanent ? 'permanent' : 'front',
-        drawerStyle: { width: permanent ? 280 : Math.min(320, width * 0.85), backgroundColor: colors.bg, borderRightColor: colors.line },
-        sceneStyle: { backgroundColor: colors.bg },
-      }}
-    >
-      {items.map((it) =>
-        built[it.name] ? (
+    <View style={{ flex: 1 }}>
+      <Drawer.Navigator
+        drawerContent={(props) => <DrawerContent {...props} />}
+        screenOptions={{
+          headerShown: true,
+          header: () => <TopBar />,
+          drawerType: permanent ? 'permanent' : 'front',
+          drawerStyle: { width: permanent ? 280 : Math.min(320, width * 0.85), backgroundColor: colors.bg, borderRightColor: colors.line },
+          sceneStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        {items.map((it) => (
           <Drawer.Screen key={it.name} name={it.name} component={built[it.name]} options={{ title: it.title }} />
-        ) : (
-          <Drawer.Screen key={it.name} name={it.name} options={{ title: it.title }}>
-            {() => <ComingNext title={it.title} icon={it.icon ?? 'home'} body={it.body} />}
-          </Drawer.Screen>
-        ),
-      )}
-    </Drawer.Navigator>
+        ))}
+      </Drawer.Navigator>
+    </View>
   );
 }

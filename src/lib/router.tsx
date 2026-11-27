@@ -31,16 +31,16 @@ const TABS = DRAWER_ROUTES;
 type Params = Record<string, string | undefined>;
 export type Href = string | { pathname: string; params?: Params };
 
-function parse(href: Href): { name: string; params?: Params; tab?: string } {
+function parse(href: Href): { name: string; params?: object; tab?: string } {
   const { pathname, params } = typeof href === 'string' ? { pathname: href, params: undefined } : href;
   const name = pathname.replace(/^\//, '');
-  return TABS.includes(name) ? { name: 'tabs', params: { screen: name }, tab: name } : { name, params };
+  return TABS.includes(name) ? { name: 'tabs', params: { screen: name, params }, tab: name } : { name, params };
 }
 
 export const router = {
   push: (href: Href) => { const r = parse(href); navRef.isReady() && navRef.dispatch(StackActions.push(r.name, r.params)); },
   replace: (href: Href) => { const r = parse(href); navRef.isReady() && navRef.dispatch(StackActions.replace(r.name, r.params)); },
-  navigate: (href: Href) => { const r = parse(href); navRef.isReady() && navRef.navigate(r.name, r.params); },
+  navigate: (href: Href) => { const r = parse(href); navRef.isReady() && (navRef.navigate as (n: string, p?: object) => void)(r.name, r.params); },
   back: () => navRef.isReady() && navRef.goBack(),
   canGoBack: () => navRef.isReady() && navRef.canGoBack(),
   /** Clear the stack and land on `href` (after linking, after unlinking). Back can't return to login. */

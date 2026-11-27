@@ -15,7 +15,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-export type ApiErrorKind = 'invalid_code' | 'expired_code' | 'unauthorized' | 'network' | 'server' | 'no_server';
+export type ApiErrorKind = 'invalid_code' | 'expired_code' | 'unauthorized' | 'network' | 'server' | 'no_server' | 'not_found';
 
 export class ApiError extends Error {
   constructor(

@@ -21,52 +21,46 @@ export interface MenuItem {
   /** Drawer route name; also the path segment used by router.navigate('/<name>'). */
   name: string;
   title: string;
-  icon?: IconName;
-  body: string;
+  icon: IconName;
 }
-export interface MenuSection extends MenuItem {
-  children?: MenuItem[];
+export interface MenuGroup {
+  title?: string;
+  items: MenuItem[];
 }
 
-/** Mirrors the Admin UI sidebar (APP_SECTIONS), minus Super admin. Keep in sync with it. */
-export const MENU: MenuSection[] = [
-  { name: 'home', title: 'Overview', icon: 'home', body: 'Fleet health, approvals and recent alerts.' },
-  { name: 'servers', title: 'Servers', icon: 'servers', body: 'Your fleet with health, uptime and recent changes for each server.' },
-  { name: 'tools', title: 'Tools', icon: 'wrench', body: 'Operational tools for your servers.' },
+/** The side menu from the design. Users, roles, invites and tags stay in the web admin. */
+export const MENU: MenuGroup[] = [
+  { items: [{ name: 'home', title: 'Home', icon: 'home' }] },
   {
-    name: 'service-management',
-    title: 'Service management',
-    icon: 'boxes',
-    body: '',
-    children: [{ name: 'postgres', title: 'Postgres', body: 'Manage your Postgres services.' }],
-  },
-  { name: 'vault', title: 'Vault', icon: 'lock', body: 'Environment variables, config files and notes per project.' },
-  { name: 'approvals', title: 'Approvals', icon: 'shieldCheck', body: 'Review and approve sensitive actions your team requests.' },
-  { name: 'metrics', title: 'Metrics', icon: 'lineChart', body: 'Server metrics over time.' },
-  { name: 'workflows', title: 'Workflows', icon: 'workflow', body: 'Your workflows and their runs.' },
-  { name: 'service-logs', title: 'Service logs', icon: 'scroll', body: 'Logs from your services.' },
-  {
-    name: 'admin',
-    title: 'Admin',
-    icon: 'key',
-    body: '',
-    children: [
-      { name: 'organization', title: 'Organization', body: 'Your organization details.' },
-      { name: 'users', title: 'Users', body: 'People in your organization.' },
-      { name: 'invitations', title: 'Invitations', body: 'Pending and past invitations.' },
-      { name: 'api-keys', title: 'API keys', body: 'Keys for programmatic access.' },
-      { name: 'roles', title: 'Roles', body: 'Roles and their permissions.' },
-      { name: 'access-policies', title: 'Access policies', body: 'Sign-in and security policies.' },
-      { name: 'tags', title: 'Tags', body: 'Tags used to group servers.' },
-      { name: 'audit-logs', title: 'Audit logs', body: 'Who did what, and when.' },
+    title: 'Infrastructure',
+    items: [
+      { name: 'servers', title: 'Servers', icon: 'servers' },
+      { name: 'services', title: 'Services', icon: 'database' },
     ],
   },
+  {
+    title: 'Observe',
+    items: [
+      { name: 'metrics', title: 'Metrics', icon: 'trend' },
+      { name: 'logs', title: 'Service logs', icon: 'lines' },
+    ],
+  },
+  {
+    title: 'Automation',
+    items: [
+      { name: 'workflows', title: 'Workflows', icon: 'flow' },
+      { name: 'tools', title: 'Tools', icon: 'wrench' },
+      { name: 'approvals', title: 'Approvals', icon: 'shieldCheck' },
+    ],
+  },
+  { title: 'Security', items: [{ name: 'vault', title: 'Vault', icon: 'vaultBox' }] },
 ];
 
-/** Pages the drawer also hosts that aren't in the Admin UI sidebar. */
-export const EXTRA: MenuItem[] = [
-  { name: 'alerts', title: 'Alerts', icon: 'bell', body: 'Server alerts, workflow results and Vault changes.' },
-  { name: 'profile', title: 'Profile', icon: 'user', body: '' },
+/** Pages reached from elsewhere (avatar, inbox, a server row), not listed in the menu. */
+export const HIDDEN: MenuItem[] = [
+  { name: 'server', title: 'Server', icon: 'servers' },
+  { name: 'alerts', title: 'Inbox', icon: 'bell' },
+  { name: 'profile', title: 'Profile', icon: 'user' },
 ];
 
-export const DRAWER_ROUTES = [...MENU.flatMap((s) => s.children ?? [s]), ...EXTRA].map((i) => i.name);
+export const DRAWER_ROUTES = [...MENU.flatMap((g) => g.items), ...HIDDEN].map((i) => i.name);

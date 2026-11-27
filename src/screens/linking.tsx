@@ -34,7 +34,8 @@ import { ApiError, messageOf } from '@/lib/errors';
 import { hostOf } from '@/lib/format';
 import { normalizeServer, parseUserId } from '@/lib/linkPayload';
 import { resetTo } from '@/lib/nav';
-import { loadPrefs, savePrefs } from '@/lib/prefs';
+import { clearPin } from '@/lib/pin';
+import { savePrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
 import { useTheme } from '@/theme/ThemeProvider';
 import { brand, radius } from '@/theme/tokens';
@@ -195,8 +196,8 @@ export default function Linking() {
       Haptics.success();
       await wait(500);
 
-      const prefs = await loadPrefs();
-      resetTo(router, prefs.setupDone ? '/home' : '/setup');
+      await clearPin(); // a new link always sets a new PIN
+      resetTo(router, '/pin-create');
     } catch (e) {
       Haptics.error();
       setError(messageOf(e));

@@ -15,8 +15,20 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-import { ComingNext } from '@/components/ComingNext';
+import { Empty, Screen } from '@/components/Page';
+import { useDashboard } from '@/lib/dashboard';
 
+// shortcut: the API only sends alert counts, not alert rows, so the inbox shows a summary.
 export default function Alerts() {
-  return <ComingNext title="Alerts" icon="bell" body="Server alerts, workflow results and Vault changes, newest first, linked to the audit log." />;
+  const { data, loading, refreshing, refresh, error } = useDashboard();
+  const n = data?.alertsSent24h ?? 0;
+  return (
+    <Screen title="Inbox" loading={loading} error={error} onRefresh={() => void refresh()} refreshing={refreshing}>
+      <Empty
+        icon="bell"
+        title={n ? `${n} ${n === 1 ? 'alert' : 'alerts'} sent in the last 24h` : 'No alerts'}
+        body={n && data?.alertsLatestSource ? `Latest from ${data.alertsLatestSource}${data.alertsLatestTime ? `, ${data.alertsLatestTime}` : ''}.` : 'Server alerts, workflow results and Vault changes will show here.'}
+      />
+    </Screen>
+  );
 }

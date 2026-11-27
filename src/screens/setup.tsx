@@ -28,7 +28,8 @@ import { Text, type as T } from '@/components/Text';
 import { Toggle } from '@/components/Toggle';
 import { api } from '@/lib/api';
 import { workspaceLabel } from '@/lib/format';
-import { authenticate, getBiometricInfo, unlockTitle, type BiometricInfo } from '@/lib/biometrics';
+import { getBiometricInfo, unlockTitle, type BiometricInfo } from '@/lib/biometrics';
+import { enableBiometricUnlock } from '@/lib/biometricLock';
 import { resetTo } from '@/lib/nav';
 import { enableNotifications } from '@/lib/notifications';
 import { defaultNotificationPrefs, loadPrefs, savePrefs, type NotificationPrefs } from '@/lib/prefs';
@@ -52,27 +53,26 @@ export default function Setup() {
   const { session } = useSession();
   const [prefs, setPrefs] = useState<NotificationPrefs>(defaultNotificationPrefs);
   const [bio, setBio] = useState<BiometricInfo | null>(null);
-  const [bioOn, setBioOn] = useState(true);
+  const [bioOn, setBioOn] = useState(true); // on by default; asked for once when finishing
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void loadPrefs().then((p) => {
       setPrefs(p.notifications);
-      setBioOn(p.biometricLock);
     });
     void getBiometricInfo().then(setBio);
   }, []);
 
   const toggleBio = async (next: boolean) => {
-    // Turning the lock on proves the user can pass it, so they can't lock themselves out.
-    if (next && !(await authenticate(`Use ${bio?.label ?? 'biometrics'} for N-Ops`))) return;
     setBioOn(next);
   };
 
   const finish = async (withNotifications: boolean) => {
     if (!session) return resetTo(router, '/scan');
     setBusy(true);
-    await savePrefs({ notifications: prefs, biometricLock: !!bio?.available && bioOn, setupDone: true });
+    // Turning it on proves the user can pass the check, and binds it to the faces/fingers on the phone now.
+    const lock = !!bio?.available && bioOn && (await enableBiometricUnlock(`Use ${bio.label} for N-Ops`));
+    await savePrefs({ notifications: prefs, biometricLock: lock, setupDone: true });
     if (withNotifications) await enableNotifications(session, prefs);
     else void api.updateNotificationPrefs(session, prefs).catch(() => undefined);
     setBusy(false);

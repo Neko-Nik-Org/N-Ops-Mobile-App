@@ -33,11 +33,11 @@ export function MenuButton() {
     <PressableScale
       accessibilityLabel="Open menu"
       onPress={() => navRef.isReady() && navRef.dispatch(DrawerActions.openDrawer())}
-      style={[styles.btn, { backgroundColor: colors.surface }]}
+      style={[styles.btn, { backgroundColor: colors.surface, borderColor: colors.line }]}
     >
       <Icon name="menu" size={20} color={colors.text} strokeWidth={1.9} />
     </PressableScale>
   );
 }
 
-const styles = StyleSheet.create({ btn: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' } });
+const styles = StyleSheet.create({ btn: { width: 40, height: 40, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' } });

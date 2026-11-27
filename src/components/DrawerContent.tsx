@@ -16,53 +16,53 @@
  */
 
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
-import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDashboard } from '@/lib/dashboard';
-import { workspaceLabel } from '@/lib/format';
-import { EXTRA, MENU, type MenuItem } from '@/lib/menu';
+import { MENU, type MenuItem } from '@/lib/menu';
 import { useSession } from '@/lib/session';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Icon } from './Icon';
 import { LogoMark } from './Logo';
 import { Text } from './Text';
 
-/** Admin UI sidebar, as a drawer: single links, expandable groups, live Approvals count. */
+/** Side menu from the design: grouped pages with live counts, profile at the bottom. */
 export function DrawerContent({ state, navigation }: DrawerContentComponentProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { session } = useSession();
   const { data, approvedIds } = useDashboard();
-  const waiting = (data?.approvals ?? []).filter((a) => !approvedIds.has(a.id)).length;
   const active = state.routes[state.index]?.name;
-  const [open, setOpen] = useState<string | null>(() => MENU.find((s) => s.children?.some((c) => c.name === active))?.name ?? null);
+  const waiting = (data?.approvals ?? []).filter((a) => !approvedIds.has(a.id)).length;
+  // Only what the API reports: server total and waiting approvals.
+  const count = (name: string) => (name === 'servers' && data?.fleet.total ? String(data.fleet.total) : '');
+  const badge = (name: string) => (name === 'approvals' && waiting ? waiting : 0);
 
   const go = (name: string) => {
     navigation.navigate(name);
     navigation.closeDrawer();
   };
 
-  const row = (it: MenuItem, child = false) => {
-    const on = active === it.name;
-    const badge = it.name === 'approvals' && waiting ? waiting : 0;
+  const row = (it: MenuItem) => {
+    const on = active === it.name || (it.name === 'servers' && active === 'server');
+    const n = badge(it.name);
+    const c = count(it.name);
     return (
-      <Pressable
-        key={it.name}
-        accessibilityRole="button"
-        accessibilityState={{ selected: on }}
-        onPress={() => go(it.name)}
-        style={[styles.row, child && styles.child, on && { backgroundColor: colors.raised }]}
-      >
-        {it.icon ? <Icon name={it.icon} size={20} color={on ? colors.accent : colors.muted} strokeWidth={on ? 2 : 1.9} /> : null}
-        <Text f={on ? 'body600' : 'body500'} size={15} lh={20} color={on ? colors.textStrong : colors.text2} style={{ flex: 1 }}>
+      <Pressable key={it.name} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => go(it.name)} style={[styles.row, on && { backgroundColor: colors.okSoft }]}>
+        <Icon name={it.icon} size={20} color={on ? colors.accent : colors.muted} strokeWidth={1.9} />
+        <Text f={on ? 'body600' : 'body500'} size={15} lh={20} color={on ? colors.accent : colors.text} style={{ flex: 1 }}>
           {it.title}
         </Text>
-        {badge ? (
+        {c ? (
+          <Text f="mono500" size={12} lh={16} color={colors.muted}>
+            {c}
+          </Text>
+        ) : null}
+        {n ? (
           <View style={[styles.badge, { backgroundColor: colors.violet }]}>
             <Text f="body700" size={11} lh={18} color="#0B1118" align="center">
-              {badge}
+              {n}
             </Text>
           </View>
         ) : null}
@@ -72,54 +72,50 @@ export function DrawerContent({ state, navigation }: DrawerContentComponentProps
 
   return (
     <View style={{ flex: 1, paddingTop: insets.top + 9, paddingBottom: insets.bottom + 6 }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Switch workspace" style={styles.brand}>
+      <View style={styles.brand}>
         <LogoMark size={32} />
-        <View style={{ flexShrink: 1 }}>
-          <Text size={11} lh={14} color={colors.muted}>
-            Workspace
-          </Text>
-          <View style={styles.wsRow}>
-            <Text f="body600" size={15} lh={20} color={colors.textStrong} numberOfLines={1} style={{ flexShrink: 1 }}>
-              {session ? workspaceLabel(session.workspace) : '—'}
-            </Text>
-            <Icon name="chevronDown" size={14} color={colors.muted} strokeWidth={2.2} />
-          </View>
-        </View>
-      </Pressable>
+        <Text f="display600" size={20} lh={26} color={colors.textStrong}>
+          N-Ops
+        </Text>
+      </View>
       <ScrollView contentContainerStyle={styles.list}>
-        {MENU.map((s) =>
-          s.children ? (
-            <View key={s.name}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ expanded: open === s.name }}
-                onPress={() => setOpen(open === s.name ? null : s.name)}
-                style={styles.row}
-              >
-                {s.icon ? <Icon name={s.icon} size={20} color={colors.muted} strokeWidth={1.9} /> : null}
-                <Text f="body500" size={15} lh={20} color={colors.text2} style={{ flex: 1 }}>
-                  {s.title}
-                </Text>
-                <Icon name={open === s.name ? 'chevronDown' : 'chevronRight'} size={16} color={colors.muted} strokeWidth={2.2} />
-              </Pressable>
-              {open === s.name ? s.children.map((c) => row(c, true)) : null}
-            </View>
-          ) : (
-            row(s)
-          ),
-        )}
+        {MENU.map((g, i) => (
+          <View key={g.title ?? i} style={{ gap: 2 }}>
+            {g.title ? (
+              <Text f="body600" size={11} lh={14} ls={0.9} color={colors.muted} style={styles.groupTitle}>
+                {g.title.toUpperCase()}
+              </Text>
+            ) : null}
+            {g.items.map(row)}
+          </View>
+        ))}
       </ScrollView>
-      <View style={[styles.footer, { borderTopColor: colors.line }]}>{EXTRA.map((e) => row(e))}</View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Profile and settings" onPress={() => go('profile')} style={[styles.footer, { borderTopColor: colors.line }]}>
+        <View style={[styles.avatar, { backgroundColor: colors.raised }]}>
+          <Text f="display700" size={13} lh={16} color={colors.text2}>
+            {session?.user.initials ?? '?'}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text f="body600" size={15} lh={20} color={colors.textStrong} numberOfLines={1}>
+            {session?.user.displayName ?? ''}
+          </Text>
+          <Text size={12} lh={16} color={colors.muted}>
+            Profile and settings
+          </Text>
+        </View>
+        <Icon name="chevronRight" size={16} color={colors.muted} strokeWidth={2} />
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   brand: { minHeight: 44, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  list: { padding: 12, gap: 2 },
+  list: { padding: 12, gap: 14 },
+  groupTitle: { marginLeft: 12, marginBottom: 2 },
   row: { height: 44, paddingHorizontal: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  child: { marginLeft: 20, paddingLeft: 20 },
   badge: { minWidth: 18, height: 18, paddingHorizontal: 5, borderRadius: 9 },
-  footer: { borderTopWidth: 1, padding: 12, gap: 2 },
+  footer: { borderTopWidth: 1, marginHorizontal: 12, paddingHorizontal: 8, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });

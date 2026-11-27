@@ -1,6 +1,7 @@
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+import RNBootSplash
 import UIKit
 
 class SceneDelegate: RCTDefaultReactNativeFactoryDelegate, UIWindowSceneDelegate {
@@ -44,6 +45,12 @@ class SceneDelegate: RCTDefaultReactNativeFactoryDelegate, UIWindowSceneDelegate
 
   func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
     RCTLinkingManager.scene(scene, continue: userActivity)
+  }
+
+  override func customize(_ rootView: RCTRootView) {
+    super.customize(rootView)
+    // Same plain frame as the launch screen, held until JS calls BootSplash.hide().
+    RNBootSplash.initWithStoryboard("LaunchScreen", rootView: rootView)
   }
 
   override func bundleURL() -> URL? {

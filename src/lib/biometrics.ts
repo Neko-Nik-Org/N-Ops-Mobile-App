@@ -25,8 +25,9 @@ export interface BiometricInfo {
   kind: 'face' | 'fingerprint' | 'other';
 }
 
-// Passcode fallback, like the Expo app.
-const rnb = new ReactNativeBiometrics({ allowDeviceCredentials: true });
+// Biometrics only: a phone with no Face ID / fingerprint enrolled reports "not available" (no phone passcode
+// prompt), so the app goes straight to its own PIN.
+const rnb = new ReactNativeBiometrics({ allowDeviceCredentials: false });
 
 export async function getBiometricInfo(): Promise<BiometricInfo> {
   try {
@@ -41,7 +42,7 @@ export async function getBiometricInfo(): Promise<BiometricInfo> {
   }
 }
 
-/** Biometric prompt with passcode fallback. Resolves true on success. */
+/** Biometric prompt (no phone-passcode fallback). Resolves true on success. */
 export async function authenticate(promptMessage: string): Promise<boolean> {
   try {
     return (await rnb.simplePrompt({ promptMessage, cancelButtonText: 'Cancel' })).success;

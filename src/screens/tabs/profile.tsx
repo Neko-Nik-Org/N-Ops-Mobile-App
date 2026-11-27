@@ -15,45 +15,58 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-import { useRouter } from '@/lib/router';
-import { useEffect, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useRouter } from '@/lib/router';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Linking, StyleSheet, View } from 'react-native';
 
 import { IconTile } from '@/components/Bits';
 import { PressableScale } from '@/components/Buttons';
 import { Icon } from '@/components/Icon';
+import { Screen } from '@/components/Page';
+import { PermissionSheet } from '@/components/PermissionSheet';
 import { Text, type as T } from '@/components/Text';
 import { Toggle } from '@/components/Toggle';
 import { api } from '@/lib/api';
-import { authenticate, getBiometricInfo, unlockTitle, type BiometricInfo } from '@/lib/biometrics';
+import { disableBiometricUnlock } from '@/lib/biometricLock';
+import { getBiometricInfo, unlockTitle, type BiometricInfo } from '@/lib/biometrics';
 import { hostOf, workspaceLabel } from '@/lib/format';
 import { resetTo } from '@/lib/nav';
+import { AUTO_LOCK_OPTIONS } from '@/lib/pin';
 import { loadPrefs, resetAccountPrefs, savePrefs } from '@/lib/prefs';
 import { useSession } from '@/lib/session';
 import { useTheme } from '@/theme/ThemeProvider';
 import type { ThemePref } from '@/theme/tokens';
 import { radius } from '@/theme/tokens';
 
-/**
- * Profile is not on the canvas yet. This scaffold holds the settings the design refers to:
- * Appearance (System / Light / Dark), the biometric lock, notifications, and Unlink.
- */
+/** Profile and settings: appearance, auto-lock, PIN and Face ID, notifications, and unlinking this phone. */
 export default function Profile() {
   const router = useRouter();
   const { colors, pref, setPref } = useTheme();
   const { session, clear } = useSession();
   const [bio, setBio] = useState<BiometricInfo | null>(null);
   const [bioOn, setBioOn] = useState(false);
+  const [autoLock, setAutoLock] = useState<number>(60_000);
+  const [explainBio, setExplainBio] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadPrefs().then((p) => setBioOn(p.biometricLock));
+    }, []),
+  );
 
   useEffect(() => {
     void getBiometricInfo().then(setBio);
-    void loadPrefs().then((p) => setBioOn(p.biometricLock));
+    void loadPrefs().then((p) => {
+      setBioOn(p.biometricLock);
+      setAutoLock(p.autoLockMs);
+    });
   }, []);
 
   const toggleBio = async (next: boolean) => {
-    if (!(await authenticate(next ? `Use ${bio?.label ?? 'biometrics'} for N-Ops` : 'Turn off the lock'))) return;
-    setBioOn(next);
-    await savePrefs({ biometricLock: next });
+    if (next) return setExplainBio(true); // explain first, then ask for the PIN
+    await disableBiometricUnlock();
+    setBioOn(false);
+    await savePrefs({ biometricLock: false });
   };
 
   const unlink = () => {
@@ -80,7 +93,7 @@ export default function Profile() {
   ];
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.bg }} contentContainerStyle={[styles.content, { paddingTop: 12 }]}>
+    <Screen title="Profile">
 
       {session ? (
         <View style={[styles.card, styles.person, { backgroundColor: colors.surface, borderColor: colors.line }]}>
@@ -124,6 +137,32 @@ export default function Profile() {
       </View>
 
       <Text {...T.label} color={colors.text2} style={styles.section}>
+        Auto-lock
+      </Text>
+      <View style={[styles.segment, { backgroundColor: colors.raised }]} accessibilityRole="radiogroup">
+        {AUTO_LOCK_OPTIONS.map((o) => {
+          const on = autoLock === o.ms;
+          return (
+            <PressableScale
+              key={o.ms}
+              accessibilityRole="button"
+              accessibilityLabel={`Auto-lock: ${o.label}`}
+              accessibilityState={{ selected: on }}
+              onPress={() => {
+                setAutoLock(o.ms);
+                void savePrefs({ autoLockMs: o.ms });
+              }}
+              style={[styles.segItem, on && { backgroundColor: colors.surface, boxShadow: colors.shadowSm }]}
+            >
+              <Text f={on ? 'body600' : 'body500'} size={13} lh={18} color={on ? colors.textStrong : colors.muted} numberOfLines={1}>
+                {o.label}
+              </Text>
+            </PressableScale>
+          );
+        })}
+      </View>
+
+      <Text {...T.label} color={colors.text2} style={styles.section}>
         Security and alerts
       </Text>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
@@ -136,7 +175,18 @@ export default function Profile() {
             <Toggle value={bioOn} onValueChange={(v) => void toggleBio(v)} accessibilityLabel={unlockTitle(bio)} />
           </View>
         ) : null}
-        <PressableScale accessibilityLabel="Notification settings" onPress={() => void Linking.openSettings()} style={[styles.row, bio?.available && { borderTopWidth: 1, borderTopColor: colors.line2 }]}>
+        <PressableScale
+          accessibilityLabel="Change PIN"
+          onPress={() => router.push({ pathname: '/pin-create', params: { change: '1' } })}
+          style={[styles.row, bio?.available && { borderTopWidth: 1, borderTopColor: colors.line2 }]}
+        >
+          <IconTile icon="lock" tone="ok" />
+          <Text f="body500" size={15} lh={20} style={{ flex: 1 }}>
+            Change PIN
+          </Text>
+          <Icon name="chevronRight" size={18} color={colors.muted} />
+        </PressableScale>
+        <PressableScale accessibilityLabel="Notification settings" onPress={() => void Linking.openSettings()} style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.line2 }]}>
           <IconTile icon="bell" tone="violet" />
           <Text f="body500" size={15} lh={20} style={{ flex: 1 }}>
             Notification settings
@@ -145,18 +195,26 @@ export default function Profile() {
         </PressableScale>
       </View>
 
-      <PressableScale accessibilityLabel="Unlink this phone" onPress={unlink} style={[styles.card, styles.row, { marginTop: 24, backgroundColor: colors.surface, borderColor: colors.line }]}>
+      <PressableScale accessibilityLabel="Sign out of this device" onPress={unlink} style={[styles.card, styles.row, { marginTop: 24, backgroundColor: colors.surface, borderColor: colors.line }]}>
         <IconTile icon="unlink" tone="crit" />
         <Text f="body600" size={15} lh={20} color={colors.critText} style={{ flex: 1 }}>
-          Unlink this phone
+          Sign out of this device
         </Text>
       </PressableScale>
-    </ScrollView>
+      <PermissionSheet
+        kind="biometrics"
+        visible={explainBio}
+        onCancel={() => setExplainBio(false)}
+        onContinue={() => {
+          setExplainBio(false);
+          router.push({ pathname: '/pin-create', params: { bio: '1' } });
+        }}
+      />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 20, paddingBottom: 32 },
   card: { borderRadius: radius.card, borderWidth: 1, overflow: 'hidden' },
   person: { marginTop: 22, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16 },
   avatar: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },

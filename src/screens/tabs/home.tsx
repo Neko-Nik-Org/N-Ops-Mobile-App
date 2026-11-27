@@ -15,230 +15,165 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-import { useRouter } from '@/lib/router';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 
 import { IconTile } from '@/components/Bits';
 import { PressableScale, SmallButton } from '@/components/Buttons';
-import { Icon } from '@/components/Icon';
-import { Text, type as T } from '@/components/Text';
+import { Icon, type IconName } from '@/components/Icon';
+import { Screen } from '@/components/Page';
+import { Text } from '@/components/Text';
 import { useDashboard } from '@/lib/dashboard';
-import { ago, greeting, shortAgo } from '@/lib/format';
+import { greeting } from '@/lib/format';
+import { useRouter } from '@/lib/router';
 import { useSession } from '@/lib/session';
-import type { AlertItem, ApprovalRequest } from '@/lib/types';
 import { useTheme } from '@/theme/ThemeProvider';
-import { brand, radius } from '@/theme/tokens';
-import { easeOut } from '@/theme/motion';
-
-const enter = (i: number) => FadeInDown.delay(i * 60).duration(500).easing(easeOut);
+import { radius } from '@/theme/tokens';
 
 export default function Home() {
   const router = useRouter();
   const { colors } = useTheme();
   const { session } = useSession();
-  const { data, loading, refreshing, refresh, approvedIds, error } = useDashboard();
-
+  const { data, loading, refreshing, refresh, approvedIds, decide, error } = useDashboard();
   const pending = (data?.approvals ?? []).filter((a) => !approvedIds.has(a.id));
-  // "Needs your attention" = things only you can act on: approvals waiting for you.
-  const attention = pending.length;
   const first = session?.user.firstName;
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={[styles.content, { paddingTop: 0 }]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.accent} colors={[brand.mint]} />}
-    >
-      <Animated.View entering={enter(0)} style={{ marginTop: 16, gap: 4 }}>
-        <Text {...T.titleXs} lh={30} color={colors.textStrong} accessibilityRole="header">
-          {greeting()}
-          {first ? `, ${first}` : ''}
-        </Text>
-        <Text size={14} lh={20} color={colors.muted}>
-          {loading ? 'Checking your fleet…' : attention > 0 ? `${attention} ${attention === 1 ? 'thing needs' : 'things need'} your attention` : 'All quiet. Nothing needs you right now.'}
-        </Text>
-      </Animated.View>
-
-      {error ? (
-        <View style={[styles.banner, { backgroundColor: colors.warnSoft }]}>
-          <Icon name="alertTriangle" size={16} color={colors.warnText} />
-          <Text size={13} lh={18} color={colors.warnText} style={{ flex: 1 }}>
-            {error}
-          </Text>
-        </View>
-      ) : null}
-
-      {loading || !data ? (
-        <View style={{ gap: 12, marginTop: 18 }}>
-          <View style={[styles.skeleton, { height: 150, backgroundColor: colors.raised }]} />
-          <View style={[styles.skeleton, { height: 160, backgroundColor: colors.raised }]} />
-        </View>
-      ) : (
+    <Screen title={`${greeting()}${first ? `, ${first}` : ''}`} loading={loading || !data} error={error} onRefresh={() => void refresh()} refreshing={refreshing}>
+      {data ? (
         <>
-          <Animated.View entering={enter(1)}>
-            <FleetCard fleet={data.fleet} onAll={() => router.navigate('/servers')} />
-          </Animated.View>
-          {pending.length > 0 ? (
-            <Animated.View entering={enter(2)}>
-              <ApprovalCard first={pending[0]} waiting={pending.length} />
-            </Animated.View>
+          <Text size={15} lh={22} color={colors.muted} style={{ marginTop: 4 }}>
+            {pending.length ? `${pending.length} ${pending.length === 1 ? 'thing needs' : 'things need'} you. Everything else is calm.` : 'All quiet. Nothing needs you right now.'}
+          </Text>
+
+          <Fleet fleet={data.fleet} onPress={() => router.navigate('/servers')} />
+
+          {pending.length ? (
+            <>
+              <View style={{ marginTop: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text f="display600" size={18} lh={24} color={colors.textStrong}>
+                    Needs you
+                  </Text>
+                  <View style={{ paddingHorizontal: 7, borderRadius: 999, backgroundColor: colors.violet }}>
+                    <Text f="body700" size={12} lh={20} color="#0B1118">
+                      {pending.length}
+                    </Text>
+                  </View>
+                </View>
+                <PressableScale accessibilityLabel="See all approvals" onPress={() => router.navigate('/approvals')}>
+                  <Text f="body600" size={14} lh={20} color={colors.accent}>
+                    See all
+                  </Text>
+                </PressableScale>
+              </View>
+              <View style={{ marginTop: 12, padding: 16, gap: 14, borderRadius: 20, borderWidth: 1, borderColor: colors.violetLine, backgroundColor: colors.surface }}>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <IconTile icon="refresh" tone="violet" size={40} iconSize={20} radius={12} />
+                  <View style={{ flex: 1, gap: 3 }}>
+                    <Text f="body600" size={16} lh={22} color={colors.textStrong}>
+                      {pending[0].action}
+                    </Text>
+                    <Text size={13} lh={18} color={colors.muted}>
+                      {pending[0].target} · {pending[0].expiresLabel}
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <SmallButton label="Review" variant="outline" onPress={() => router.navigate('/approvals')} />
+                  <SmallButton label="Approve" variant="primary" onPress={() => void decide(pending[0].id, pending[0].action, true)} />
+                </View>
+              </View>
+            </>
           ) : null}
-          <Animated.View entering={enter(3)} style={{ marginTop: 20 }}>
-            <View style={styles.sectionHead}>
-              <Text {...T.label} color={colors.text2} accessibilityRole="header">
-                Recent alerts
-              </Text>
-              <PressableScale accessibilityLabel="See all alerts" onPress={() => router.navigate('/alerts')}>
-                <Text f="body600" size={13} lh={18} color={colors.accent}>
-                  See all
-                </Text>
-              </PressableScale>
-            </View>
-            {data.alerts.slice(0, 3).map((a, i, arr) => (
-              <AlertRow key={a.id} alert={a} last={i === arr.length - 1} />
-            ))}
-          </Animated.View>
+
+          <Text f="display600" size={18} lh={24} color={colors.textStrong} style={{ marginTop: 26, marginBottom: 12 }}>
+            At a glance
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Tile icon="flow" tone="ok" where="Workflows" value={`${data.workflowRuns24h} runs`} note={data.workflowRunsFailed ? `${data.workflowRunsFailed} failed` : 'in the last 24h'} bad={!!data.workflowRunsFailed} onPress={() => router.navigate('/workflows')} />
+            <Tile icon="bell" tone="warn" where="Alerts" value={`${data.alertsSent24h} sent`} note={data.alertsLatestSource || 'in the last 24h'} onPress={() => router.navigate('/alerts')} />
+          </View>
         </>
-      )}
-    </ScrollView>
+      ) : null}
+    </Screen>
   );
 }
 
-function FleetCard({ fleet, onAll }: { fleet: { total: number; online: number; degraded: number; offline: number }; onAll: () => void }) {
+function Fleet({ fleet, onPress }: { fleet: { total: number; online: number; degraded: number; offline: number }; onPress: () => void }) {
   const { colors } = useTheme();
+  const R = 44;
+  const C = 2 * Math.PI * R;
+  const seg = (n: number, from: number, color: string) => (
+    <Circle cx={52} cy={52} r={R} fill="none" stroke={color} strokeWidth={10} strokeDasharray={`${(n / Math.max(fleet.total, 1)) * C} ${C}`} strokeDashoffset={-from} rotation={-90} origin="52, 52" />
+  );
   return (
-    <View style={[styles.card, { marginTop: 18, backgroundColor: colors.surface, borderColor: colors.line }]} accessibilityLabel={`Fleet health: ${fleet.total} servers, ${fleet.online} online, ${fleet.degraded} degraded, ${fleet.offline} offline`}>
-      <View style={styles.sectionHead}>
-        <Text {...T.label} color={colors.text2}>
+    <PressableScale
+      accessibilityLabel={`Fleet health: ${fleet.online} of ${fleet.total} servers online, ${fleet.degraded} degraded, ${fleet.offline} offline`}
+      onPress={onPress}
+      style={{ marginTop: 16, padding: 18, gap: 20, flexDirection: 'row', alignItems: 'center', borderRadius: 24, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface }}
+    >
+      <View style={{ width: 104, height: 104 }}>
+        <Svg width={104} height={104} viewBox="0 0 104 104">
+          <Circle cx={52} cy={52} r={R} fill="none" stroke={colors.line} strokeWidth={10} />
+          {fleet.total ? seg(fleet.online, 0, colors.ok) : null}
+          {fleet.degraded ? seg(fleet.degraded, (fleet.online / fleet.total) * C, colors.warn) : null}
+          {fleet.offline ? seg(fleet.offline, ((fleet.online + fleet.degraded) / fleet.total) * C, colors.crit) : null}
+        </Svg>
+        <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <Text f="display600" size={24} lh={26} color={colors.textStrong}>
+            {fleet.online}
+            <Text size={15} color={colors.muted}>
+              /{fleet.total}
+            </Text>
+          </Text>
+          <Text size={11} color={colors.muted}>
+            online
+          </Text>
+        </View>
+      </View>
+      <View style={{ flex: 1, gap: 9 }}>
+        <Text f="body600" size={13} lh={18} color={colors.text2}>
           Fleet health
         </Text>
-        <PressableScale accessibilityLabel="All servers" onPress={onAll}>
-          <Text f="body600" size={13} lh={18} color={colors.accent}>
-            All servers
-          </Text>
-        </PressableScale>
+        <Legend color={colors.ok} label={`${fleet.online} online`} round />
+        <Legend color={colors.warn} label={`${fleet.degraded} degraded`} />
+        <Legend color={colors.crit} label={`${fleet.offline} offline`} diamond />
       </View>
-      <View style={styles.bigNumber}>
-        <Text f="display600" size={36} lh={40} ls={-0.72} color={colors.textStrong}>
-          {fleet.total}
-        </Text>
-        <Text size={14} lh={20} color={colors.muted}>
-          servers
-        </Text>
-      </View>
-      <View style={styles.bar}>
-        <View style={{ flex: fleet.online, borderTopLeftRadius: 4, borderBottomLeftRadius: 4, backgroundColor: colors.ok }} />
-        {fleet.degraded > 0 ? <View style={{ flex: fleet.degraded, backgroundColor: colors.warn }} /> : null}
-        {fleet.offline > 0 ? <View style={{ flex: fleet.offline, borderTopRightRadius: 4, borderBottomRightRadius: 4, backgroundColor: colors.crit }} /> : null}
-      </View>
-      <View style={styles.legend}>
-        <Legend color={colors.ok} shape="circle" label={`${fleet.online} online`} />
-        <Legend color={colors.warn} shape="square" label={`${fleet.degraded} degraded`} />
-        <Legend color={colors.crit} shape="diamond" label={`${fleet.offline} offline`} />
-      </View>
-    </View>
+      <Icon name="chevronRight" size={18} color={colors.muted} />
+    </PressableScale>
   );
 }
 
-function Legend({ color, shape, label }: { color: string; shape: 'circle' | 'square' | 'diamond'; label: string }) {
-  const { colors } = useTheme();
+function Legend({ color, label, round, diamond }: { color: string; label: string; round?: boolean; diamond?: boolean }) {
   return (
-    <View style={styles.legendItem}>
-      <View style={{ width: 8, height: 8, borderRadius: shape === 'circle' ? 4 : 2, backgroundColor: color, transform: shape === 'diamond' ? [{ rotate: '45deg' }] : undefined }} />
-      <Text size={12} lh={16} color={colors.text2}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={{ width: 8, height: 8, borderRadius: round ? 4 : 2, backgroundColor: color, transform: diamond ? [{ rotate: '45deg' }] : undefined }} />
+      <Text size={14} lh={20}>
         {label}
       </Text>
     </View>
   );
 }
 
-function ApprovalCard({ first, waiting }: { first: ApprovalRequest; waiting: number }) {
+function Tile({ icon, tone, where, value, note, bad, onPress }: { icon: IconName; tone: 'ok' | 'warn'; where: string; value: string; note: string; bad?: boolean; onPress: () => void }) {
   const { colors } = useTheme();
-  const router = useRouter();
-  const { approve, approvedIds } = useDashboard();
-  const done = approvedIds.has(first.id);
   return (
-    <View style={[styles.card, { marginTop: 12, backgroundColor: colors.surface, borderColor: colors.violetLine }]}>
-      <View style={styles.sectionHead}>
-        <View style={styles.inline}>
-          <Icon name="shieldCheck" size={16} color={colors.violetText} />
-          <Text {...T.label} color={colors.text2}>
-            Approvals
-          </Text>
-        </View>
-        <View style={[styles.pill, { backgroundColor: colors.violetSoft }]}>
-          <Text f="body600" size={12} lh={16} color={colors.violetText}>
-            {waiting} waiting
-          </Text>
-        </View>
-      </View>
-      <View style={{ gap: 4 }}>
-        <Text f="body600" size={16} lh={22} color={colors.textStrong}>
-          {first.action} on{' '}
-          <Text f="mono500" size={14} lh={22} color={colors.textStrong}>
-            {first.target}
-          </Text>
-        </Text>
-        <Text size={12} lh={16} color={colors.muted}>
-          Requested by{' '}
-          <Text f="mono400" size={12} lh={16} color={colors.text2}>
-            {first.requestedBy}
-          </Text>{' '}
-          · {ago(first.requestedAt)} · {first.approvalsGiven} of {first.approvalsRequired} approvals
+    <PressableScale accessibilityLabel={`${where}: ${value}, ${note}`} onPress={onPress} style={{ flex: 1, padding: 16, gap: 12, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <IconTile icon={icon} tone={tone} size={34} iconSize={18} radius={11} />
+        <Text size={12} color={colors.muted}>
+          {where}
         </Text>
       </View>
-      {done ? (
-        <View style={[styles.approved, { backgroundColor: colors.okSoft }]} accessibilityLiveRegion="polite">
-          <Icon name="check" size={18} color={colors.accent} strokeWidth={2.6} />
-          <Text f="body600" size={14} lh={18} color={colors.accent}>
-            Approved · {first.action.toLowerCase().startsWith('restart') ? 'restart queued' : 'sent'}
-          </Text>
-        </View>
-      ) : (
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <SmallButton label="Review" variant="outline" onPress={() => router.navigate('/approvals')} />
-          <SmallButton label="Approve" variant="primary" onPress={() => void approve(first.id, `${first.action} on ${first.target}`)} />
-        </View>
-      )}
-    </View>
+      <View style={{ gap: 2 }}>
+        <Text f="display600" size={22} lh={26} color={colors.textStrong}>
+          {value}
+        </Text>
+        <Text size={13} lh={18} color={bad ? colors.critText : colors.muted} numberOfLines={1}>
+          {note}
+        </Text>
+      </View>
+    </PressableScale>
   );
 }
-
-function AlertRow({ alert, last }: { alert: AlertItem; last: boolean }) {
-  const { colors } = useTheme();
-  const tone = alert.severity === 'critical' ? 'crit' : alert.severity === 'warning' ? 'warn' : 'ok';
-  const icon = alert.severity === 'critical' ? 'alertCircle' : alert.severity === 'warning' ? 'alertTriangle' : 'check';
-  return (
-    <View style={[styles.alert, !last && { borderBottomWidth: 1, borderBottomColor: colors.line2 }]} accessibilityLabel={`${alert.title}, ${alert.subject}, ${ago(alert.at)}`}>
-      <IconTile icon={icon} tone={tone} strokeWidth={tone === 'ok' ? 2.4 : 2.2} />
-      <View style={{ flex: 1 }}>
-        <Text f="body500" size={14} lh={19}>
-          {alert.title}
-        </Text>
-        <Text f="mono400" size={12} lh={16} color={colors.muted}>
-          {alert.subject}
-        </Text>
-      </View>
-      <Text f="mono400" size={11} lh={14} color={colors.muted}>
-        {shortAgo(alert.at)}
-      </Text>
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  content: { paddingHorizontal: 20, paddingBottom: 32 },
-  banner: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: radius.sm },
-  skeleton: { borderRadius: radius.card },
-  card: { padding: 16, borderRadius: radius.card, borderWidth: 1, gap: 12 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  inline: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bigNumber: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  bar: { flexDirection: 'row', gap: 3, height: 8 },
-  legend: { flexDirection: 'row', gap: 16 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },
-  approved: { height: 44, paddingHorizontal: 14, borderRadius: radius.sm, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  alert: { height: 54, flexDirection: 'row', alignItems: 'center', gap: 12 },
-});
