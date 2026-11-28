@@ -1,0 +1,25 @@
+default_platform(:android)
+
+platform :android do
+  desc "Signed AAB -> Play internal track"
+  lane :beta do
+    build_and_upload("internal")
+  end
+
+  desc "Signed AAB -> Play production"
+  lane :release do
+    build_and_upload("production")
+  end
+
+  def build_and_upload(track)
+    gradle(task: "bundle", build_type: "Release", project_dir: ".")
+    upload_to_play_store(
+      track: track,
+      aab: lane_context[SharedValues::GRADLE_AAB_OUTPUT_PATH],
+      release_status: ENV["PLAY_RELEASE_STATUS"] || "completed",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end

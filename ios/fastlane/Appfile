@@ -1,0 +1,2 @@
+app_identifier("com.nekonik.nops")
+team_id(ENV["APPLE_TEAM_ID"] || "3C34G7BUNH")

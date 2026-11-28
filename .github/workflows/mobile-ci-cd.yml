@@ -1,0 +1,103 @@
+name: Mobile CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read # least privilege: jobs never need to write to the repo
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test -- --ci
+
+  android:
+    if: github.event_name != 'pull_request'
+    needs: checks
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      ANDROID_VERSION_CODE: ${{ github.run_number }} # raise via offset below if Play already has higher codes
+      PLAY_JSON_KEY_PATH: ${{ runner.temp }}/play.json
+      PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - run: npm ci
+      - name: Signing + Play credentials
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PLAY_JSON: ${{ secrets.PLAY_JSON_KEY }}
+        run: |
+          echo "$KS_B64" | base64 -d > android/app/upload.keystore
+          printf '%s' "$PLAY_JSON" > "$PLAY_JSON_KEY_PATH"
+          cat > android/keystore.properties <<EOF
+          storeFile=upload.keystore
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          EOF
+      - name: Apply versionCode offset
+        run: echo "ANDROID_VERSION_CODE=$(( ${{ github.run_number }} + ${{ vars.ANDROID_VERSION_CODE_OFFSET || 0 }} ))" >> "$GITHUB_ENV"
+      - name: Deploy
+        working-directory: android
+        run: bundle exec fastlane android ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'beta' }}
+
+  ios:
+    if: github.event_name != 'pull_request'
+    needs: checks
+    runs-on: macos-15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - run: npm ci
+      - uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ hashFiles('ios/Podfile.lock') }}
+      - run: bundle exec pod install
+        working-directory: ios
+      - name: Deploy
+        working-directory: ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+        run: bundle exec fastlane ios ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'beta' }}

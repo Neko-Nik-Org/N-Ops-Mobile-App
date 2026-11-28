@@ -86,7 +86,7 @@ android {
         applicationId "com.nekonik.nops"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
+        versionCode System.getenv("ANDROID_VERSION_CODE")?.toInteger() ?: 2 // CI overrides
         versionName "1.0.1"
     }
     signingConfigs {
